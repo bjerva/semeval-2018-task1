@@ -133,7 +133,7 @@ def build_model():
         x = word_x
 
     # Output layer
-    main_output = Dense(nb_classes, activation='softmax', name='main_output')(x)
+    main_output = Dense(1, activation='linear', name='main_output')(x)
 
     if args.chars and args.words:
         model_input = [word_input, char_input]
@@ -187,23 +187,20 @@ def calculate_accuracy(model, y, classes, fname):
     TODO: Document
     '''
     sent_tags = []
-    corr, err = 0, 0
+    diff = 0
     for idx, sentence in enumerate(y):
-        gold_tag = np.argmax(sentence)
+        gold_tag = sentence
 
 
-        pred_tag = np.argmax(classes[idx])
-        if pred_tag == gold_tag:
-            corr += 1
-        else:
-            err += 1
+        pred_tag = classes[idx]
+        diff += abs(gold_tag - pred_tag)
 
         indices = [idx]
-
+        print(str(gold_tag) + " " + str(pred_tag))
         sent_tags.append((indices, gold_tag, pred_tag))
 
-    print('Corr: {0}, Err: {1}'.format(corr, err))
-    accuracy = corr / float(corr+err)
+    #print('Corr: {0}, Err: {1}'.format(corr, err))
+    accuracy = diff/idx
     print('Accuracy:', accuracy)
 
     return classes, accuracy, sent_tags
@@ -262,7 +259,9 @@ if __name__ == '__main__':
 
     # Word data must be read even if word features aren't used
     (X_train_words, y_train), (X_dev_words, y_dev), (X_test_words, y_test), word_vectors = data_utils.read_word_data(args.train[0], args.dev[0], args.test[0], index_dict, word_vectors, args.max_sent_len)
-    nb_classes = y_train.shape[1]
+    nb_classes = 1
+    #print(nb_classes)
+    #print(len(y_train[0]))
 
     if args.words:
         if args.ignore_embeddings or not args.embeddings:
@@ -307,9 +306,13 @@ if __name__ == '__main__':
         X_test = [X_test_words, ]
 
     model_outputs = [y_train, ]
-    model_losses = ['categorical_crossentropy', ]
+    model_losses = ['mean_squared_error', ]
     model_loss_weights = [1.0, ]
-    model_metrics = ['accuracy', ]
+
+    def mean_pred(y_true, y_pred):
+        return K.mean(abs(y_true-y_pred))
+
+    model_metrics = [mean_pred, ]
 
 
     model = build_model()

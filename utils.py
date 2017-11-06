@@ -95,7 +95,7 @@ def load_word_data(fname, word_to_id, tag_to_id, max_sent_len, is_training=False
 
             #if args.shorten_sents and len(curr_X) >= max_sent_len-2:
             X.append(curr_X)
-            y.append(tag_to_id[intensity])
+            y.append(float(intensity))
             curr_X = []#word_to_id[SENT_CONT]]
                 #curr_y = []#tag_to_id[SENT_CONT]]
     ## get some stats on dataset

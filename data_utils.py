@@ -74,8 +74,8 @@ def preprocess_words(X_ids, Y_ids, word_to_id, tag_to_id, word_vectors, max_sent
             curr_X[idy+1] = word_id # +1 for offset
         curr_X[-1] = word_to_id[SENT_END]
         X.append(curr_X)
-
     y = np.zeros((len(Y_ids), nb_classes), dtype=np.int32)#[]
+    '''
     for idx, tag_id in enumerate(Y_ids):
         #curr_Y = np.zeros((len(sentence)+2, nb_classes), dtype=np.int32) # +2 for sent_start, sent_end
         #curr_Y[0, tag_to_id[SENT_START]] = 1
@@ -83,7 +83,8 @@ def preprocess_words(X_ids, Y_ids, word_to_id, tag_to_id, word_vectors, max_sent
         y[idx, tag_id] = 1 # +1 for offset
         #curr_Y[-1, tag_to_id[SENT_END]] = 1
         #y.append(curr_Y)
-
+    '''
+    y = Y_ids
     X = sequence.pad_sequences(X, maxlen=max_sent_len, dtype=np.int32, value=word_to_id[SENT_PAD])
 
     return X, y, word_vectors
