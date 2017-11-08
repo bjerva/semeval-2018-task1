@@ -34,6 +34,8 @@ import data_utils
 from analysis import write_confusion_matrix, prepare_error_analysis
 from config import *
 
+from scipy.stats import pearsonr
+
 
 def build_model():
     '''
@@ -186,6 +188,7 @@ def calculate_accuracy(model, y, classes, fname):
     '''
     TODO: Document
     '''
+    
     sent_tags = []
     diff = 0
     for idx, sentence in enumerate(y):
@@ -196,12 +199,15 @@ def calculate_accuracy(model, y, classes, fname):
         diff += abs(gold_tag - pred_tag)
 
         indices = [idx]
-        print(str(gold_tag) + " " + str(pred_tag))
+        #print(str(gold_tag) + " " + str(pred_tag))
         sent_tags.append((indices, gold_tag, pred_tag))
-
-    #print('Corr: {0}, Err: {1}'.format(corr, err))
-    accuracy = diff/idx
+    
+    #print(np.asarray(y))
+    #print("her kommer classes")
+    #print(classes[:,0])
+    accuracy = pearsonr(np.asarray(y), classes[:,0])
     print('Accuracy:', accuracy)
+    sent_tags.append((indices, gold_tag, pred_tag))
 
     return classes, accuracy, sent_tags
 
