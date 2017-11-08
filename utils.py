@@ -84,8 +84,9 @@ def load_word_data(fname, word_to_id, tag_to_id, max_sent_len, is_training=False
                     curr_X.append(word_to_id[NUMBER])
                 else:
                     #token = ''.join(ch for ch in token if ch not in exclude)
-                    if is_training or token.lower() in word_to_id:# and args.mwe and ('~' in token or '-' in token):
+                    if is_training and token.lower() in word_to_id:# and args.mwe and ('~' in token or '-' in token):
                         curr_X.append(word_to_id[token.lower()])
+                        print(token)
                         #curr_X.append(attempt_reconstruction(token, word_to_id))
                     else:
                         #print("unk*****", token) #if token not in embeddings it's UNK (or mwu if option off)

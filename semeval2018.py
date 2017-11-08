@@ -193,12 +193,11 @@ def calculate_accuracy(model, y, classes, fname):
     diff = 0
     for idx, sentence in enumerate(y):
         gold_tag = sentence
-
-
         pred_tag = classes[idx]
         diff += abs(gold_tag - pred_tag)
 
         indices = [idx]
+        print(str(gold_tag) + "    " + str(pred_tag))
         #print(str(gold_tag) + " " + str(pred_tag))
         sent_tags.append((indices, gold_tag, pred_tag))
     
@@ -255,6 +254,7 @@ if __name__ == '__main__':
     if args.embeddings:
         if __debug__: print('Loading embeddings...')
         word_vectors, index_dict, word_embedding_dim = utils.read_word_embeddings(args.embeddings)
+        #print(next(key for key, value in index_dict.items() if value == 7241))
         if __debug__: print('Embeddings for {} words loaded'.format(len(word_vectors)))
     else:
         word_embedding_dim = args.word_embedding_dim   ### TODO: if no embeddings given, no index_dict!
@@ -274,12 +274,14 @@ if __name__ == '__main__':
             vocab_size = 1 + max(np.max(X_train_words), max(np.max(X_dev_words), np.max(X_test_words)))
         else:
             vocab_size = len(index_dict)
+            #print(vocab_size)
             embedding_weights = np.zeros((vocab_size, word_embedding_dim))
             for word, index in index_dict.items():
                 if __debug__ and word not in word_vectors:
                     print('word not in vectors', word)
                     continue
                 embedding_weights[index,:] = word_vectors[word]
+                #print(word + " " + str(index_dict[word]))
 
     if args.chars:
         if __debug__:

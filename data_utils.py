@@ -96,7 +96,8 @@ def read_word_data(trainfile, devfile, testfile, word_to_id, word_vectors, max_s
     TODO: hdf5 data caching
     """
     tag_to_id = defaultdict(lambda: len(tag_to_id))
-    word_to_id = defaultdict(lambda: len(word_to_id))
+    if args.ignore_embeddings and not args.embeddings: #skal begge flag være sat af?
+        word_to_id = defaultdict(lambda: len(word_to_id))
 
     (X_train_ids, y_train_ids, word_to_id, tag_to_id) = utils.load_word_data(trainfile, word_to_id, tag_to_id, max_sent_len, is_training=True)
     (X_dev_ids, y_dev_ids, _,_) = utils.load_word_data(devfile, word_to_id, tag_to_id, max_sent_len)
