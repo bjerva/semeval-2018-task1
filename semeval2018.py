@@ -197,7 +197,7 @@ def calculate_accuracy(model, y, classes, fname):
         diff += abs(gold_tag - pred_tag)
 
         indices = [idx]
-        print(str(gold_tag) + "    " + str(pred_tag))
+        #print(str(gold_tag) + "    " + str(pred_tag))
         #print(str(gold_tag) + " " + str(pred_tag))
         sent_tags.append((indices, gold_tag, pred_tag))
     
@@ -280,7 +280,11 @@ if __name__ == '__main__':
                 if __debug__ and word not in word_vectors:
                     print('word not in vectors', word)
                     continue
-                embedding_weights[index,:] = word_vectors[word]
+                try:
+                    embedding_weights[index,:] = word_vectors[word]
+                    #print(word_vectors[word])
+                except ValueError:
+                    embedding_weights[index,:] = np.zeros(300)
                 #print(word + " " + str(index_dict[word]))
 
     if args.chars:
