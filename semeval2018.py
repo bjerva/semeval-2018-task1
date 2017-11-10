@@ -74,7 +74,7 @@ def build_model():
         if args.bn:
             x = BatchNormalization(mode=bn_mode)(x)
 
-        x = Activation('relu')(x)
+        x = Activation('linear')(x)
 
         feature_size = args.char_embedding_dim
         char_embedding = Reshape((int(args.max_word_len / (2 ** args.resnet)), int(feature_size)))(x)
@@ -285,7 +285,7 @@ if __name__ == '__main__':
                     #print(word_vectors[word])
                 except ValueError:
                     embedding_weights[index,:] = np.zeros(300)
-                #print(word + " " + str(index_dict[word]))
+                    #print(word + " " + str(index_dict[word]))
 
     if args.chars:
         if __debug__:
@@ -295,8 +295,17 @@ if __name__ == '__main__':
         for dummy_char in (SENT_PAD, SENT_START, SENT_END, UNKNOWN):
             char_to_id[dummy_char]
 
-        X_train_chars, X_dev_chars, X_test_chars = data_utils.read_char_data(args.train[0], args.dev[0], args.test[0], char_to_id, args.max_sent_len, args.max_word_len)
-
+        X_train_chars = np.empty([0, args.max_word_len])
+        X_dev_chars = np.empty([0, args.max_word_len])
+        X_test_chars = np.empty([0, args.max_word_len])
+        for index in range(len(args.train)):
+            X_train_char, X_dev_char, X_test_char = data_utils.read_char_data(args.train[index], args.dev[index], args.test[index], char_to_id, args.max_sent_len, args.max_word_len)
+            X_train_chars = np.append(X_train_chars, X_train_char, axis=0)
+            X_dev_chars = np.append(X_dev_chars, X_dev_char, axis=0)
+            X_test_chars = np.append(X_test_chars, X_test_char, axis=0)
+        
+        #import ipdb; ipdb.set_trace()
+        
         char_vocab_size = len(char_to_id)
         if __debug__:
             print('{0} char ids'.format(char_vocab_size))
@@ -307,7 +316,7 @@ if __name__ == '__main__':
         X_train = [X_train_words, X_train_chars]
         X_dev = [X_dev_words, X_dev_chars]
         X_test = [X_test_words, X_test_chars]
-
+    
     elif args.chars:
         X_train = [X_train_chars, ]
         X_dev = [X_dev_chars, ]
@@ -316,10 +325,10 @@ if __name__ == '__main__':
         X_train = [X_train_words, ]
         X_dev = [X_dev_words, ]
         X_test = [X_test_words, ]
-
+        
     model_outputs = [y_train, ]
     model_losses = ['mean_squared_error', ]
-    model_loss_weights = [1.0, ]
+    model_loss_weights = [0.2, ]
 
     def mean_pred(y_true, y_pred):
         return K.mean(abs(y_true-y_pred))
