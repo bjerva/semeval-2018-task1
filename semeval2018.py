@@ -136,6 +136,7 @@ def build_model():
 
     # Output layer
     main_output = Dense(1, activation='linear', name='main_output')(x)
+    aux_output = Dense(emotions, activation='softmax', name='aux_output')(x)
 
     if args.chars and args.words:
         model_input = [word_input, char_input]
@@ -144,7 +145,7 @@ def build_model():
     elif args.words:
         model_input = [word_input, ]
 
-    model_output = [main_output, ]
+    model_output = [main_output, aux_output]
 
     model = Model(inputs=model_input, outputs=model_output)
 
@@ -156,59 +157,43 @@ def evaluate(model):
     '''
     print('Dev set results:')
 
-    classes = model.predict(X_dev, batch_size=args.bsize)
-    dev_classes, dev_accuracy, dev_tags = calculate_accuracy(model, y_dev, classes, os.path.basename(args.dev[0]))
-
-    if args.bookkeeping:
-        with open(experiment_dir+'/dev_acc.txt', 'w') as out_f:
-            out_f.write('Dev accuracy: {0}\n'.format(dev_accuracy*100))
-
-        save_outputs(dev_tags, X_dev_words, os.path.basename(args.dev[0]))
+    predictions = model.predict(X_dev, batch_size=args.bsize)
+    prediction, reg_accuracy, class_accuracy = calculate_accuracy(model, predictions, y_test_labels, y_test_class, os.path.basename(args.dev[0]))
+    import ipdb; ipdb.set_trace()
 
     if args.test:
         print('Test set')
-        classes = model.predict(X_test, batch_size=args.bsize)
-
-        test_classes, test_accuracy, test_tags = calculate_accuracy(model, y_test, classes, os.path.basename(args.test[0]))
-
-        if args.bookkeeping:
-            with open(experiment_dir+'/test_acc.txt', 'w') as out_f:
-                out_f.write('Test accuracy: {0}\n'.format(test_accuracy*100))
-
-            save_outputs(test_tags, X_test_words, os.path.basename(args.test[0]))
+        predictions = model.predict(X_test, batch_size=args.bsize)
+        prediction, reg_accuracy, class_accuracy = calculate_accuracy(model, predictions, y_test_labels, y_test_class, os.path.basename(args.test[0]))
 
     print('Sanity check on train set:')
-    classes = model.predict(X_train, batch_size=args.bsize)
+    predictions = model.predict(X_train, batch_size=args.bsize)
+    calculate_accuracy(model, predictions, y_test_labels, y_test_class, os.path.basename(args.train[0]))
 
-    calculate_accuracy(model, y_train, classes, os.path.basename(args.train[0]))
-
-    return dev_classes
-
-def calculate_accuracy(model, y, classes, fname):
+def calculate_accuracy(model, prediction, gold_reg, gold_class, fname):
     '''
     TODO: Document
     '''
     
     sent_tags = []
+    corr, err = 0,0
     diff = 0
-    for idx, sentence in enumerate(y):
-        gold_tag = sentence
-        pred_tag = classes[idx]
-        diff += abs(gold_tag - pred_tag)
+    for i, pred_reg in enumerate(prediction[0]):
+        diff += abs(gold_reg[i] - pred_reg)
 
-        indices = [idx]
-        #print(str(gold_tag) + "    " + str(pred_tag))
-        #print(str(gold_tag) + " " + str(pred_tag))
-        sent_tags.append((indices, gold_tag, pred_tag))
-    
-    #print(np.asarray(y))
-    #print("her kommer classes")
-    #print(classes[:,0])
-    accuracy = pearsonr(np.asarray(y), classes[:,0])
-    print('Accuracy:', accuracy)
-    sent_tags.append((indices, gold_tag, pred_tag))
+    for i, prob_class in enumerate(prediction[1]):
+        pred_class = np.argmax(prob_class)
+        if pred_class == np.argmax(gold_class[i]):
+            corr += 1
+        else:
+            err += 1
+    import ipdb; ipdb.set_trace()
+    reg_accuracy = pearsonr(np.asarray(prediction[0]), np.reshape(gold_reg, (len(gold_reg),1)))
+    print('Regression accuracy:', reg_accuracy)
+    class_accuracy = corr/float(corr+err)
+    print('Classification accuracy', class_accuracy)
 
-    return classes, accuracy, sent_tags
+    return prediction, reg_accuracy, class_accuracy
 
 
 def save_outputs(tags, X_words, fname):
@@ -264,7 +249,47 @@ if __name__ == '__main__':
     if __debug__: print('Loading data...')
 
     # Word data must be read even if word features aren't used
-    (X_train_words, y_train), (X_dev_words, y_dev), (X_test_words, y_test), word_vectors = data_utils.read_word_data(args.train[0], args.dev[0], args.test[0], index_dict, word_vectors, args.max_sent_len)
+    emotions = len(args.train)
+
+    X_train_words = np.empty([0, args.max_sent_len])
+    y_train_labels = []
+    y_train_class = np.empty([0, emotions])
+
+    X_dev_words = np.empty([0, args.max_sent_len])
+    y_dev_labels = []
+    y_dev_class = np.empty([0, emotions])
+    
+    X_test_words = np.empty([0, args.max_sent_len])
+    y_test_labels = []
+    y_test_class = np.empty([0, emotions])
+
+    for index in range(emotions):
+        (X_train_word, y_train), (X_dev_word, y_dev), (X_test_word, y_test), word_vectors = data_utils.read_word_data(args.train[index], args.dev[index], args.test[index], index_dict, word_vectors, args.max_sent_len)
+        X_train_words = np.append(X_train_words, X_train_word, axis=0)
+        y_train_labels.extend(y_train)
+
+        helpme1 = np.zeros([X_train_word.shape[0], emotions])
+        helpme1[:,index] = np.ones(X_train_word.shape[0])
+        y_train_class = np.append(y_train_class, helpme1, axis=0)
+
+        X_dev_words = np.append(X_dev_words, X_dev_word, axis=0)
+        y_dev_labels.extend(y_dev)
+
+        helpme2 = np.zeros([X_dev_word.shape[0], emotions])
+        helpme2[:,index] = np.ones(X_dev_word.shape[0])
+        y_dev_class = np.append(y_dev_class, helpme2, axis=0)
+
+        X_test_words = np.append(X_test_words, X_test_word, axis=0)
+        y_test_labels.extend(y_test)
+
+        helpme3 = np.zeros([X_test_word.shape[0], emotions])
+        helpme3[:,index] = np.ones(X_test_word.shape[0])
+        y_test_class = np.append(y_test_class, helpme3, axis=0)
+    y_train_labels = np.asarray(y_train_labels)
+    y_dev_labels = np.asarray(y_dev_labels)
+    y_test_labels = np.asarray(y_test_labels)
+
+    
     nb_classes = 1
     #print(nb_classes)
     #print(len(y_train[0]))
@@ -326,14 +351,15 @@ if __name__ == '__main__':
         X_dev = [X_dev_words, ]
         X_test = [X_test_words, ]
         
-    model_outputs = [y_train, ]
-    model_losses = ['mean_squared_error', ]
-    model_loss_weights = [0.2, ]
+    model_outputs = [y_train_labels, y_train_class]
+    model_losses = ['mean_squared_error', 'binary_crossentropy']
+    model_loss_weights = [1.0, 1.0]
 
     def mean_pred(y_true, y_pred):
         return K.mean(abs(y_true-y_pred))
 
-    model_metrics = [mean_pred, ]
+    model_metrics = {'main_output' : mean_pred,
+                     'aux_output' : 'accuracy'}
 
 
     model = build_model()
@@ -352,8 +378,8 @@ if __name__ == '__main__':
     if args.early_stopping:
         callbacks.append(EarlyStopping(monitor='val_loss', patience=5))
 
-    model.fit(X_train, y_train,
-                  validation_data=(X_dev, y_dev),
+    model.fit(X_train, [y_train_labels,y_train_class],
+                  validation_data=(X_dev, [y_dev_labels, y_dev_class]),
                   epochs=args.epochs,
                   batch_size=args.bsize,
                   callbacks=callbacks,
@@ -363,9 +389,6 @@ if __name__ == '__main__':
         print(args)
         print('Evaluating...')
 
-    dev_classes = evaluate(model)
-
-    if args.bookkeeping:
-        save_run_information()
+    evaluate(model)
 
     print('Completed: {0}'.format(experiment_tag))
