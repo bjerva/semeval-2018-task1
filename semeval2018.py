@@ -135,8 +135,9 @@ def build_model():
         x = word_x
 
     # Output layer
-    main_output = Dense(1, activation='linear', name='main_output')(x)
     aux_output = Dense(emotions, activation='softmax', name='aux_output')(x)
+    pre_main = concatenate([x, aux_output])
+    main_output = Dense(1, activation='linear', name='main_output')(x)
 
     if args.chars and args.words:
         model_input = [word_input, char_input]
@@ -168,7 +169,7 @@ def evaluate(model):
 
     print('Sanity check on train set:')
     predictions = model.predict(X_train, batch_size=args.bsize)
-    calculate_accuracy(model, predictions, y_test_labels, y_test_class, os.path.basename(args.train[0]))
+    calculate_accuracy(model, predictions, y_train_labels, y_train_class, os.path.basename(args.train[0]))
 
 def calculate_accuracy(model, prediction, gold_reg, gold_class, fname):
     '''
@@ -300,17 +301,20 @@ if __name__ == '__main__':
         else:
             vocab_size = len(index_dict)
             #print(vocab_size)
+            cntr = 0
             embedding_weights = np.zeros((vocab_size, word_embedding_dim))
             for word, index in index_dict.items():
                 if __debug__ and word not in word_vectors:
                     print('word not in vectors', word)
+                    cntr += 1
                     continue
                 try:
                     embedding_weights[index,:] = word_vectors[word]
                     #print(word_vectors[word])
                 except ValueError:
-                    embedding_weights[index,:] = np.zeros(300)
+                    embedding_weights[index,:] = np.zeros(word_embedding_dim)
                     #print(word + " " + str(index_dict[word]))
+        print(cntr)
 
     if args.chars:
         if __debug__:
@@ -353,7 +357,7 @@ if __name__ == '__main__':
         
     model_outputs = [y_train_labels, y_train_class]
     model_losses = ['mean_squared_error', 'binary_crossentropy']
-    model_loss_weights = [1.0, 1.0]
+    model_loss_weights = [0.8, 0.2]
 
     def mean_pred(y_true, y_pred):
         return K.mean(abs(y_true-y_pred))
@@ -378,7 +382,7 @@ if __name__ == '__main__':
     if args.early_stopping:
         callbacks.append(EarlyStopping(monitor='val_loss', patience=5))
 
-    model.fit(X_train, [y_train_labels,y_train_class],
+    model.fit(X_train, [y_train_labels, y_train_class],
                   validation_data=(X_dev, [y_dev_labels, y_dev_class]),
                   epochs=args.epochs,
                   batch_size=args.bsize,

@@ -37,7 +37,7 @@ def load_character_data(fname, char_to_id, max_sent_len, max_word_len=32):
             else:
                 char_ids = [char_to_id[char] for char in sentence]
 
-            X.append([char_to_id[SENT_START]]+char_ids+[char_to_id[SENT_END]])
+            X.append(char_ids)
 
     return X
     # sent_lens = [len(s) for s in X]
