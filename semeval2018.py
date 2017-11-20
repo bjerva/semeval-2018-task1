@@ -137,7 +137,7 @@ def build_model():
     # Output layer
     aux_output = Dense(emotions, activation='softmax', name='aux_output')(x)
     pre_main = concatenate([x, aux_output])
-    main_output = Dense(1, activation='linear', name='main_output')(x)
+    main_output = Dense(1, activation='linear', name='main_output')(pre_main)
 
     if args.chars and args.words:
         model_input = [word_input, char_input]
@@ -356,7 +356,7 @@ if __name__ == '__main__':
         X_test = [X_test_words, ]
         
     model_outputs = [y_train_labels, y_train_class]
-    model_losses = ['mean_squared_error', 'binary_crossentropy']
+    model_losses = ['mean_absolute_error', 'categorical_crossentropy']
     model_loss_weights = [0.8, 0.2]
 
     def mean_pred(y_true, y_pred):
