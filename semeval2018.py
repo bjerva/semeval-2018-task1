@@ -35,6 +35,7 @@ from analysis import write_confusion_matrix, prepare_error_analysis
 from config import *
 
 from scipy.stats import pearsonr
+from sklearn.model_selection import KFold
 
 
 def build_model():
@@ -347,7 +348,7 @@ if __name__ == '__main__':
         X_test = [X_test_words, X_test_chars]
     
     elif args.chars:
-        X_train = [X_train_chars, ]
+        X_train = np.asarray(X_train_chars)
         X_dev = [X_dev_chars, ]
         X_test = [X_test_chars, ]
     elif args.words:
@@ -356,7 +357,7 @@ if __name__ == '__main__':
         X_test = [X_test_words, ]
         
     model_outputs = [y_train_labels, y_train_class]
-    model_losses = ['mean_absolute_error', 'categorical_crossentropy']
+    model_losses = ['mean_squared_error', 'categorical_crossentropy']
     model_loss_weights = [0.8, 0.2]
 
     def mean_pred(y_true, y_pred):
@@ -368,26 +369,31 @@ if __name__ == '__main__':
 
     model = build_model()
 
+    kf = KFold(n_splits=5)
+
     model.compile(optimizer='adam',
-              loss=model_losses,
-              loss_weights=model_loss_weights,
-              metrics=model_metrics)
+        loss=model_losses,
+        loss_weights=model_loss_weights,
+        metrics=model_metrics)
 
     model.summary()
 
-    if __debug__: print('Fitting...')
+    for train_index, test_index in kf.split(X_train, y_train_labels):
+        import ipdb; ipdb.set_trace()
 
-    callbacks = [ProgbarLogger()]
+        if __debug__: print('Fitting...')
 
-    if args.early_stopping:
-        callbacks.append(EarlyStopping(monitor='val_loss', patience=5))
+        callbacks = [ProgbarLogger()]
 
-    model.fit(X_train, [y_train_labels, y_train_class],
-                  validation_data=(X_dev, [y_dev_labels, y_dev_class]),
-                  epochs=args.epochs,
-                  batch_size=args.bsize,
-                  callbacks=callbacks,
-                  verbose=args.verbose)
+        if args.early_stopping:
+            callbacks.append(EarlyStopping(monitor='val_loss', patience=5))
+
+        model.fit(X_train[train_index], [y_train_labels[train_index], y_train_class[train_index]],
+                    validation_data=(X_train[test_index], [y_train_labels[test_index], y_train_class[test_index]]),
+                    epochs=args.epochs,
+                    batch_size=args.bsize,
+                    callbacks=callbacks,
+                    verbose=args.verbose)
 
     if __debug__:
         print(args)
