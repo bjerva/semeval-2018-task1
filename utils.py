@@ -61,7 +61,7 @@ def load_character_data(fname, char_to_id, max_sent_len, max_word_len=32):
     #
     # return cut_X
 
-def load_word_data(fname, word_to_id, tag_to_id, max_sent_len, is_training=False):
+def load_word_data(fname, word_to_id, tag_to_id, max_sent_len, is_training=False, is_aux=False):
     """
     Reading of CoNLL file, converting to word ids.
     If is_training, unknown mwes will be added to the embedding dictionary using a heuristic.
@@ -74,30 +74,58 @@ def load_word_data(fname, word_to_id, tag_to_id, max_sent_len, is_training=False
         for line in in_f:
             #line = line.strip()
             #if len(line) == 0: continue
-
-            sent_id, sentence, category, intensity = line.strip().split('\t')
-            for token in sentence.split(): # TODO: Real tokenisation
-                if not args.words:
-                    curr_X.append(word_to_id[UNKNOWN])
-                # Some preprocessing
-                if re.match('^[0-9\.\,-]+$', token):
-                    curr_X.append(word_to_id[NUMBER])
-                else:
-                    #token = ''.join(ch for ch in token if ch not in exclude)
-                    if is_training and token.lower() in word_to_id:# and args.mwe and ('~' in token or '-' in token):
-                        curr_X.append(word_to_id[token.lower()])
-                        #curr_X.append(attempt_reconstruction(token, word_to_id))
-                    else:
-                        #print("unk*****", token) #if token not in embeddings it's UNK (or mwu if option off)
+            if not is_aux:
+                sent_id, sentence, category, intensity = line.strip().split('\t')
+                for token in sentence.split(): # TODO: Real tokenisation
+                    if not args.words:
                         curr_X.append(word_to_id[UNKNOWN])
+                    # Some preprocessing
+                    if re.match('^[0-9\.\,-]+$', token):
+                        curr_X.append(word_to_id[NUMBER])
+                    else:
+                        #token = ''.join(ch for ch in token if ch not in exclude)
+                        if is_training and token.lower() in word_to_id:# and args.mwe and ('~' in token or '-' in token):
+                            curr_X.append(word_to_id[token.lower()])
+                            #curr_X.append(attempt_reconstruction(token, word_to_id))
+                        else:
+                            #print("unk*****", token) #if token not in embeddings it's UNK (or mwu if option off)
+                            curr_X.append(word_to_id[UNKNOWN])
 
-            #curr_y.append(tag_to_id[tag])
+                #curr_y.append(tag_to_id[tag])
 
-            #if args.shorten_sents and len(curr_X) >= max_sent_len-2:
-            X.append(curr_X)
-            y.append(float(intensity))
-            curr_X = []#word_to_id[SENT_CONT]]
-                #curr_y = []#tag_to_id[SENT_CONT]]
+                #if args.shorten_sents and len(curr_X) >= max_sent_len-2:
+                X.append(curr_X)
+                y.append(float(intensity))
+                curr_X = []#word_to_id[SENT_CONT]]
+                    #curr_y = []#tag_to_id[SENT_CONT]]
+            else:
+                content = line.strip().split('\t')
+                sent_id, sentence = content[0:2]
+                emotions = content[2:]
+                if sent_id == "ID": #KØRSELSTIDDDDD
+                    continue
+                for token in sentence.split(): # TODO: Real tokenisation
+                    if not args.words:
+                        curr_X.append(word_to_id[UNKNOWN])
+                    # Some preprocessing
+                    if re.match('^[0-9\.\,-]+$', token):
+                        curr_X.append(word_to_id[NUMBER])
+                    else:
+                        #token = ''.join(ch for ch in token if ch not in exclude)
+                        if is_training and token.lower() in word_to_id:# and args.mwe and ('~' in token or '-' in token):
+                            curr_X.append(word_to_id[token.lower()])
+                            #curr_X.append(attempt_reconstruction(token, word_to_id))
+                        else:
+                            #print("unk*****", token) #if token not in embeddings it's UNK (or mwu if option off)
+                            curr_X.append(word_to_id[UNKNOWN])
+
+                #curr_y.append(tag_to_id[tag])
+
+                #if args.shorten_sents and len(curr_X) >= max_sent_len-2:
+                X.append(curr_X)
+                y.append(emotions)
+                curr_X = []#word_to_id[SENT_CONT]]
+                    #curr_y = []#tag_to_id[SENT_CONT]]
     ## get some stats on dataset
     sent_lens = [len(s) for s in X]
     max_sent_len_data = max(sent_lens)

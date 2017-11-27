@@ -263,8 +263,10 @@ if __name__ == '__main__':
     y_test_labels = []
     y_test_class = np.empty([0, emotions])
 
-    for index in range(emotions):
-        (X_train_word, y_train), (X_dev_word, y_dev), (X_test_word, y_test), word_vectors = data_utils.read_word_data(args.train[index], args.dev[index], args.test[index], index_dict, word_vectors, args.max_sent_len)
+    #y_aux_class = np.empty([0, 11])
+
+    for index in range(emotions): #HIVER AUX DATA NED HVER ENESTE GANG DER BLIVER LÆST EN AF DE FIRE FILER NED!!!
+        (X_train_word, y_train), (X_dev_word, y_dev), (X_test_word, y_test), (X_aux_words, y_aux), word_vectors = data_utils.read_word_data(args.train[index], args.dev[index], args.test[index], args.aux, index_dict, word_vectors, args.max_sent_len)
         X_train_words = np.append(X_train_words, X_train_word, axis=0)
         y_train_labels.extend(y_train)
 
@@ -285,11 +287,15 @@ if __name__ == '__main__':
         helpme3 = np.zeros([X_test_word.shape[0], emotions])
         helpme3[:,index] = np.ones(X_test_word.shape[0])
         y_test_class = np.append(y_test_class, helpme3, axis=0)
+
+    y_aux_class = np.asarray(y_aux)
+
     y_train_labels = np.asarray(y_train_labels)
     y_dev_labels = np.asarray(y_dev_labels)
     y_test_labels = np.asarray(y_test_labels)
 
-    
+    import ipdb; ipdb.set_trace()
+
     nb_classes = 1
     #print(nb_classes)
     #print(len(y_train[0]))

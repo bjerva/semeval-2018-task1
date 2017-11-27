@@ -89,7 +89,7 @@ def preprocess_words(X_ids, Y_ids, word_to_id, tag_to_id, word_vectors, max_sent
 
     return X, y, word_vectors
 
-def read_word_data(trainfile, devfile, testfile, word_to_id, word_vectors, max_sent_len):
+def read_word_data(trainfile, devfile, testfile, auxfile, word_to_id, word_vectors, max_sent_len):
     """
     Load data from CoNLL file and convert to ids (utils load function)
     Preprocess data
@@ -107,12 +107,18 @@ def read_word_data(trainfile, devfile, testfile, word_to_id, word_vectors, max_s
         X_test, y_test, word_vectors = preprocess_words(X_test_ids, y_test_ids, word_to_id, tag_to_id, word_vectors, max_sent_len)
     else:
         X_test, y_test  = None, None
+    
+    if auxfile:
+        (X_aux_ids, y_aux_ids, _,_) = utils.load_word_data(auxfile[0], word_to_id, tag_to_id, max_sent_len, is_aux=True)
+    else:
+        X_aux, y_aux  = None, None
 
     # padding
-    X_train, y_train, word_vectors = preprocess_words(X_train_ids, y_train_ids, word_to_id, tag_to_id, word_vectors, max_sent_len, is_training=True)
+    X_train, y_train, word_vectors = preprocess_words(X_train_ids, y_train_ids, word_to_id, tag_to_id, word_vectors, max_sent_len)
     X_dev, y_dev, _ = preprocess_words(X_dev_ids, y_dev_ids, word_to_id, tag_to_id, word_vectors, max_sent_len)
+    X_aux, y_aux, _ = preprocess_words(X_aux_ids, y_aux_ids, word_to_id, tag_to_id, word_vectors, max_sent_len)
 
-    return (X_train, y_train), (X_dev, y_dev), (X_test, y_test), word_vectors
+    return (X_train, y_train), (X_dev, y_dev), (X_test, y_test), (X_aux, y_aux), word_vectors
 
 def read_char_data(trainfile, devfile, testfile, char_to_id, max_sent_len, max_word_len):
     """
