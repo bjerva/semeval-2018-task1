@@ -137,8 +137,8 @@ def build_model():
 
     # Output layer
     aux_output = Dense(emotions, activation='softmax', name='aux_output')(x)
-    pre_main = concatenate([x, aux_output])
-    main_output = Dense(1, activation='linear', name='main_output')(pre_main)
+    #pre_main = concatenate([x, aux_output])
+    main_output = Dense(1, activation='linear', name='main_output')(x)
 
     if args.chars and args.words:
         model_input = [word_input, char_input]
@@ -160,13 +160,12 @@ def evaluate(model):
     print('Dev set results:')
 
     predictions = model.predict(X_dev, batch_size=args.bsize)
-    prediction, reg_accuracy, class_accuracy = calculate_accuracy(model, predictions, y_test_labels, y_test_class, os.path.basename(args.dev[0]))
+    calculate_accuracy(model, predictions, y_dev_labels, y_dev_class, os.path.basename(args.dev[0])) #BRUGER IKKE FNAME ARGUMENTET, SLET
     import ipdb; ipdb.set_trace()
-
     if args.test:
         print('Test set')
         predictions = model.predict(X_test, batch_size=args.bsize)
-        prediction, reg_accuracy, class_accuracy = calculate_accuracy(model, predictions, y_test_labels, y_test_class, os.path.basename(args.test[0]))
+        calculate_accuracy(model, predictions, y_test_labels, y_test_class, os.path.basename(args.test[0]))
 
     print('Sanity check on train set:')
     predictions = model.predict(X_train, batch_size=args.bsize)
@@ -189,7 +188,6 @@ def calculate_accuracy(model, prediction, gold_reg, gold_class, fname):
             corr += 1
         else:
             err += 1
-    import ipdb; ipdb.set_trace()
     reg_accuracy = pearsonr(np.asarray(prediction[0]), np.reshape(gold_reg, (len(gold_reg),1)))
     print('Regression accuracy:', reg_accuracy)
     class_accuracy = corr/float(corr+err)
@@ -334,7 +332,6 @@ if __name__ == '__main__':
             X_dev_chars = np.append(X_dev_chars, X_dev_char, axis=0)
             X_test_chars = np.append(X_test_chars, X_test_char, axis=0)
         
-        #import ipdb; ipdb.set_trace()
         
         char_vocab_size = len(char_to_id)
         if __debug__:
@@ -369,7 +366,7 @@ if __name__ == '__main__':
 
     model = build_model()
 
-    kf = KFold(n_splits=5)
+    kf = KFold(n_splits=9)
 
     model.compile(optimizer='adam',
         loss=model_losses,
@@ -379,7 +376,6 @@ if __name__ == '__main__':
     model.summary()
 
     for train_index, test_index in kf.split(X_train, y_train_labels):
-        import ipdb; ipdb.set_trace()
 
         if __debug__: print('Fitting...')
 
