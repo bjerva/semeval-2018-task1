@@ -26,18 +26,31 @@ def read_word_embeddings(fname):
     vec_dim = len(word_vec_map[word])
     return word_vec_map, word_id_map, vec_dim
 
-def load_character_data(fname, char_to_id, max_sent_len, max_word_len=32):
+def load_character_data(fname, char_to_id, max_sent_len, max_word_len=32, is_aux=False):
     X = []
 
     with open(fname, 'r', encoding='utf-8') as in_f:
-        for line in in_f:
-            sent_id, sentence, category, intensity = line.strip().split('\t')
-            if args.bytes:
-                char_ids = [char_to_id[byte] for char in sentence for byte in map(ord, char.encode('utf8'))]
-            else:
-                char_ids = [char_to_id[char] for char in sentence]
+        next(in_f)
+        if not is_aux:
+            for line in in_f:
+                sent_id, sentence, category, intensity = line.strip().split('\t')
+                if args.bytes:
+                    char_ids = [char_to_id[byte] for char in sentence for byte in map(ord, char.encode('utf8'))]
+                else:
+                    char_ids = [char_to_id[char] for char in sentence]
 
-            X.append(char_ids)
+                X.append(char_ids)
+        else:
+            for line in in_f:
+                content = line.strip().split('\t')
+                sent_id, sentence = content[0:2]
+                emotions = content[2:]
+                if args.bytes:
+                    char_ids = [char_to_id[byte] for char in sentence for byte in map(ord, char.encode('utf8'))]
+                else:
+                    char_ids = [char_to_id[char] for char in sentence]
+
+                X.append(char_ids)
 
     return X
     # sent_lens = [len(s) for s in X]
@@ -70,6 +83,7 @@ def load_word_data(fname, word_to_id, tag_to_id, max_sent_len, is_training=False
     X, y = [], []
 
     with open(fname, 'r', encoding='utf-8') as in_f:
+        next(in_f) #Skipper first line
         curr_X, curr_y = [], []
         for line in in_f:
             #line = line.strip()
@@ -104,8 +118,6 @@ def load_word_data(fname, word_to_id, tag_to_id, max_sent_len, is_training=False
                 content = line.strip().split('\t')
                 sent_id, sentence = content[0:2]
                 emotions = content[2:]
-                if sent_id == "ID": #KØRSELSTIDDDDD
-                    continue
                 for token in sentence.split(): # TODO: Real tokenisation
                     if not args.words:
                         curr_X.append(word_to_id[UNKNOWN])

@@ -120,7 +120,7 @@ def read_word_data(trainfile, devfile, testfile, auxfile, word_to_id, word_vecto
 
     return (X_train, y_train), (X_dev, y_dev), (X_test, y_test), (X_aux, y_aux), word_vectors, word_to_id
 
-def read_char_data(trainfile, devfile, testfile, char_to_id, max_sent_len, max_word_len):
+def read_char_data(trainfile, devfile, testfile, auxfile, char_to_id, max_sent_len, max_word_len):
     """
     read char data, preprocess
     """
@@ -133,11 +133,17 @@ def read_char_data(trainfile, devfile, testfile, char_to_id, max_sent_len, max_w
     else:
         X_test = None
 
+    if testfile:
+        X_aux_ids = utils.load_character_data(auxfile, char_to_id, max_sent_len, max_word_len, is_aux=True)
+        X_aux = preprocess_chars(X_aux_ids, char_to_id, max_sent_len, max_word_len)
+    else:
+        X_aux = None
+
     print("preprocess chars")
     X_train = preprocess_chars(X_train_ids, char_to_id, max_sent_len, max_word_len)
     X_dev = preprocess_chars(X_dev_ids, char_to_id, max_sent_len, max_word_len)
 
-    return X_train, X_dev, X_test
+    return X_train, X_dev, X_test, X_aux
 
 def preprocess_chars(X_ids, char_to_id, max_sent_len, max_word_len):
     X = []
