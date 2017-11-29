@@ -22,6 +22,7 @@ from keras.layers.core import Dense, Dropout, Activation, Flatten, Reshape, Lamb
 from keras.layers.convolutional import Convolution1D, MaxPooling1D
 from keras import backend as K
 from keras.callbacks import TensorBoard, EarlyStopping, ModelCheckpoint, ProgbarLogger
+from keras import metrics
 
 # Standard
 import os
@@ -300,8 +301,6 @@ if __name__ == '__main__':
     y_dev_labels = np.asarray(y_dev_labels)
     y_test_labels = np.asarray(y_test_labels)
 
-    import ipdb; ipdb.set_trace()
-
     #nb_classes = 1
     #print(nb_classes)
     #print(len(y_train[0]))
@@ -363,17 +362,15 @@ if __name__ == '__main__':
         X_dev = [X_dev_words, ]
         X_test = [X_test_words, ]
     
-    import ipdb; ipdb.set_trace()
     model_outputs = [y_train_labels, y_train_class]
     model_losses = ['mean_squared_error', 'categorical_crossentropy']
     model_loss_weights = [0.8, 0.2]
-    import ipdb; ipdb.set_trace()
 
     def mean_pred(y_true, y_pred):
         return K.mean(abs(y_true-y_pred))
 
     model_metrics = {'main_output' : mean_pred,
-                     'aux_output' : 'accuracy'}
+                     'aux_output' : metrics.categorical_accuracy} #https://www.quora.com/How-does-Keras-calculate-accuracy
 
 
     model = build_model()
