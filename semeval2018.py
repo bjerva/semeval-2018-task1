@@ -22,6 +22,7 @@ from keras.layers.core import Dense, Dropout, Activation, Flatten, Reshape, Lamb
 from keras.layers.convolutional import Convolution1D, MaxPooling1D
 from keras import backend as K
 from keras.callbacks import TensorBoard, EarlyStopping, ModelCheckpoint, ProgbarLogger
+from keras import metrics
 
 # Standard
 import os
@@ -46,8 +47,12 @@ def build_model():
     bn_mode = 1
     if args.chars:
         char_input = Input(shape=(args.max_word_len, ), dtype='int32', name='char_input')
+        if args.aux:
+            aux_chars = Input(shape=(args.max_word_len, ), dtype='int32', name='aux_chars')
 
         x = Embedding(char_vocab_size, args.char_embedding_dim, input_length=args.max_word_len)(char_input)
+        if args.aux:
+            x = Embedding(char_vocab_size, args.char_embedding_dim, input_length=args.max_word_len)(aux_chars) #skal de dele weights?
         x = Reshape((args.max_word_len, args.char_embedding_dim))(x)
 
         prev_x = x
@@ -82,10 +87,14 @@ def build_model():
 
     if args.words:
         word_input = Input(shape=(args.max_sent_len, ), dtype='int32', name='word_input')
+        if args.aux:
+            aux_words = Input(shape=(args.max_sent_len, ), dtype='int32', name='aux_words')
         if not args.ignore_embeddings:
             word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len, weights=[embedding_weights], trainable=(args.freeze))(word_input)
         else:
             word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len)(word_input)
+        if args.aux:
+            word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len)(aux_words)
 
         l = GRU(units=int(args.rnn_dim), return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(word_embedding)
         #l = GRU(units=int(args.rnn_dim)/2, return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(l)
@@ -136,9 +145,9 @@ def build_model():
         x = word_x
 
     # Output layer
-    aux_output = Dense(emotions, activation='softmax', name='aux_output')(x)
+    aux_class_output = Dense(11, activation='sigmoid', name='aux_class_output')(x)
     #pre_main = concatenate([x, aux_output])
-    main_output = Dense(1, activation='linear', name='main_output')(x)
+    main_reg_output = Dense(1, activation='linear', name='main_reg_output')(x)
 
     if args.chars and args.words:
         model_input = [word_input, char_input]
@@ -147,7 +156,13 @@ def build_model():
     elif args.words:
         model_input = [word_input, ]
 
-    model_output = [main_output, aux_output]
+    if args.aux and args.words:
+        model_input.append(aux_words)
+
+    if args.aux and args.chars:
+        model_input.append(aux_chars)
+
+    model_output = [main_reg_output, aux_class_output] #, main_class_output
 
     model = Model(inputs=model_input, outputs=model_output)
 
@@ -159,19 +174,19 @@ def evaluate(model):
     '''
     print('Dev set results:')
 
-    predictions = model.predict(X_dev, batch_size=args.bsize)
-    calculate_accuracy(model, predictions, y_dev_labels, y_dev_class, os.path.basename(args.dev[0])) #BRUGER IKKE FNAME ARGUMENTET, SLET
+    predictions = model.predict(X_dev, batch_size=args.bsize, verbose=1)
+    calculate_accuracy(predictions, y_dev_labels)
     import ipdb; ipdb.set_trace()
     if args.test:
         print('Test set')
-        predictions = model.predict(X_test, batch_size=args.bsize)
-        calculate_accuracy(model, predictions, y_test_labels, y_test_class, os.path.basename(args.test[0]))
+        predictions = model.predict(X_test, batch_size=args.bsize, verbose=1)
+        calculate_accuracy(predictions, y_test_labels)
 
     print('Sanity check on train set:')
-    predictions = model.predict(X_train, batch_size=args.bsize)
-    calculate_accuracy(model, predictions, y_train_labels, y_train_class, os.path.basename(args.train[0]))
+    predictions = model.predict(X_train, batch_size=args.bsize, verbose=1)
+    calculate_accuracy(predictions, y_train_labels)
 
-def calculate_accuracy(model, prediction, gold_reg, gold_class, fname):
+def calculate_accuracy(prediction, gold_reg):
     '''
     TODO: Document
     '''
@@ -182,18 +197,21 @@ def calculate_accuracy(model, prediction, gold_reg, gold_class, fname):
     for i, pred_reg in enumerate(prediction[0]):
         diff += abs(gold_reg[i] - pred_reg)
 
+    '''
     for i, prob_class in enumerate(prediction[1]):
         pred_class = np.argmax(prob_class)
         if pred_class == np.argmax(gold_class[i]):
             corr += 1
         else:
             err += 1
+    '''
+    import ipdb; ipdb.set_trace()
     reg_accuracy = pearsonr(np.asarray(prediction[0]), np.reshape(gold_reg, (len(gold_reg),1)))
     print('Regression accuracy:', reg_accuracy)
-    class_accuracy = corr/float(corr+err)
-    print('Classification accuracy', class_accuracy)
+    #class_accuracy = corr/float(corr+err)
+    #print('Classification accuracy', class_accuracy)
 
-    return prediction, reg_accuracy, class_accuracy
+    return prediction, reg_accuracy
 
 
 def save_outputs(tags, X_words, fname):
@@ -253,15 +271,12 @@ if __name__ == '__main__':
 
     X_train_words = []
     y_train_labels = []
-    y_train_class = np.empty([0, emotions])
 
     X_dev_words = []
     y_dev_labels = []
-    y_dev_class = np.empty([0, emotions])
     
     X_test_words = []
     y_test_labels = []
-    y_test_class = np.empty([0, emotions])
 
     #y_aux_class = np.empty([0, 11])
 
@@ -270,23 +285,11 @@ if __name__ == '__main__':
         X_train_words.extend(X_train_word)
         y_train_labels.extend(y_train)
 
-        helpme1 = np.zeros([X_train_word.shape[0], emotions])
-        helpme1[:,index] = np.ones(X_train_word.shape[0])
-        y_train_class = np.append(y_train_class, helpme1, axis=0)
-
         X_dev_words.extend(X_dev_word)
         y_dev_labels.extend(y_dev)
 
-        helpme2 = np.zeros([X_dev_word.shape[0], emotions])
-        helpme2[:,index] = np.ones(X_dev_word.shape[0])
-        y_dev_class = np.append(y_dev_class, helpme2, axis=0)
-
         X_test_words.extend(X_test_word)
         y_test_labels.extend(y_test)
-
-        helpme3 = np.zeros([X_test_word.shape[0], emotions])
-        helpme3[:,index] = np.ones(X_test_word.shape[0])
-        y_test_class = np.append(y_test_class, helpme3, axis=0)
 
     unique_words = len(set(np.concatenate(X_train_words)))
 
@@ -300,7 +303,6 @@ if __name__ == '__main__':
     y_dev_labels = np.asarray(y_dev_labels)
     y_test_labels = np.asarray(y_test_labels)
 
-    import ipdb; ipdb.set_trace()
 
     #nb_classes = 1
     #print(nb_classes)
@@ -336,8 +338,9 @@ if __name__ == '__main__':
         X_train_chars = np.empty([0, args.max_word_len])
         X_dev_chars = np.empty([0, args.max_word_len])
         X_test_chars = np.empty([0, args.max_word_len])
+
         for index in range(len(args.train)):
-            X_train_char, X_dev_char, X_test_char = data_utils.read_char_data(args.train[index], args.dev[index], args.test[index], char_to_id, args.max_sent_len, args.max_word_len)
+            X_train_char, X_dev_char, X_test_char, X_aux_chars = data_utils.read_char_data(args.train[index], args.dev[index], args.test[index], args.aux[0], char_to_id, args.max_sent_len, args.max_word_len)
             X_train_chars = np.append(X_train_chars, X_train_char, axis=0)
             X_dev_chars = np.append(X_dev_chars, X_dev_char, axis=0)
             X_test_chars = np.append(X_test_chars, X_test_char, axis=0)
@@ -353,32 +356,34 @@ if __name__ == '__main__':
         X_train = [X_train_words, X_train_chars]
         X_dev = [X_dev_words, X_dev_chars]
         X_test = [X_test_words, X_test_chars]
+        X_aux = [X_aux_words, X_aux_chars]
     
     elif args.chars:
         X_train = X_train_chars
-        X_dev = [X_dev_chars, ]
-        X_test = [X_test_chars, ]
+        X_dev = X_dev_chars
+        X_test = X_test_chars
+        X_aux = X_aux_chars
+
     elif args.words:
         X_train = X_train_words
-        X_dev = [X_dev_words, ]
-        X_test = [X_test_words, ]
+        X_dev = X_dev_words
+        X_test = X_test_words
+        X_aux = X_aux_words
     
-    import ipdb; ipdb.set_trace()
-    model_outputs = [y_train_labels, y_train_class]
-    model_losses = ['mean_squared_error', 'categorical_crossentropy']
+    model_outputs = [y_train_labels, y_aux_class]
+    model_losses = ['mean_squared_error', 'categorical_crossentropy'] #, 'categorical_crossentropy'
     model_loss_weights = [0.8, 0.2]
-    import ipdb; ipdb.set_trace()
 
     def mean_pred(y_true, y_pred):
         return K.mean(abs(y_true-y_pred))
 
-    model_metrics = {'main_output' : mean_pred,
-                     'aux_output' : 'accuracy'}
+    model_metrics = {'main_reg_output' : mean_pred,
+                     'aux_class_output' : metrics.categorical_accuracy} #accuracy
 
 
     model = build_model()
 
-    kf = KFold(n_splits=9)
+    kf = KFold(n_splits=2, shuffle=True)
 
     model.compile(optimizer='adam',
         loss=model_losses,
@@ -386,17 +391,18 @@ if __name__ == '__main__':
         metrics=model_metrics)
 
     model.summary()
-
+    import ipdb; ipdb.set_trace()
     for train_index, test_index in kf.split(X_train[0], y_train_labels):
         if __debug__: print('Fitting...')
-
+        import ipdb; ipdb.set_trace()
         callbacks = [ProgbarLogger()]
 
         if args.early_stopping:
             callbacks.append(EarlyStopping(monitor='val_loss', patience=5))
 
-        model.fit([X_train[0][train_index], X_train[1][train_index]], [y_train_labels[train_index], y_train_class[train_index]],
-                    validation_data=([X_train[0][test_index], X_train[1][test_index]], [y_train_labels[test_index], y_train_class[test_index]]),
+        model.fit({'word_input':X_train[0][train_index], 'char_input':X_train[1][train_index], 'aux_words':X_aux[0], 'aux_chars':X_aux[1]},
+                    {'main_reg_output':y_train_labels[train_index], 'aux_class_output':y_aux_class},
+                    validation_data=([X_train[0][test_index], X_train[1][test_index], X_aux[0], X_aux[1]], [y_train_labels[test_index], y_aux_class]),
                     epochs=args.epochs,
                     batch_size=args.bsize,
                     callbacks=callbacks,
