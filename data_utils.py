@@ -96,7 +96,7 @@ def read_word_data(trainfile, devfile, testfile, auxfile, word_to_id, word_vecto
     TODO: hdf5 data caching
     """
     tag_to_id = defaultdict(lambda: len(tag_to_id))
-    if args.ignore_embeddings and not args.embeddings: #skal begge flag være sat af?
+    if args.ignore_embeddings and word_to_id == {}: #skal begge flag være sat af?
         word_to_id = defaultdict(lambda: len(word_to_id))
 
     (X_train_ids, y_train_ids, word_to_id, tag_to_id) = utils.load_word_data(trainfile, word_to_id, tag_to_id, max_sent_len, is_training=True)
@@ -109,16 +109,16 @@ def read_word_data(trainfile, devfile, testfile, auxfile, word_to_id, word_vecto
         X_test, y_test  = None, None
     
     if auxfile:
-        (X_aux_ids, y_aux_ids, _,_) = utils.load_word_data(auxfile[0], word_to_id, tag_to_id, max_sent_len, is_aux=True)
+        (X_aux_ids, y_aux_ids, _,_) = utils.load_word_data(auxfile[0], word_to_id, tag_to_id, max_sent_len, is_aux=True, is_training=True)
+        X_aux, y_aux, _ = preprocess_words(X_aux_ids, y_aux_ids, word_to_id, tag_to_id, word_vectors, max_sent_len)
     else:
         X_aux, y_aux  = None, None
 
     # padding
     X_train, y_train, word_vectors = preprocess_words(X_train_ids, y_train_ids, word_to_id, tag_to_id, word_vectors, max_sent_len)
     X_dev, y_dev, _ = preprocess_words(X_dev_ids, y_dev_ids, word_to_id, tag_to_id, word_vectors, max_sent_len)
-    X_aux, y_aux, _ = preprocess_words(X_aux_ids, y_aux_ids, word_to_id, tag_to_id, word_vectors, max_sent_len)
 
-    return (X_train, y_train), (X_dev, y_dev), (X_test, y_test), (X_aux, y_aux), word_vectors
+    return (X_train, y_train), (X_dev, y_dev), (X_test, y_test), (X_aux, y_aux), word_vectors, word_to_id
 
 def read_char_data(trainfile, devfile, testfile, char_to_id, max_sent_len, max_word_len):
     """

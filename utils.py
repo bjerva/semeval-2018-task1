@@ -87,6 +87,8 @@ def load_word_data(fname, word_to_id, tag_to_id, max_sent_len, is_training=False
                         if is_training and token.lower() in word_to_id:# and args.mwe and ('~' in token or '-' in token):
                             curr_X.append(word_to_id[token.lower()])
                             #curr_X.append(attempt_reconstruction(token, word_to_id))
+                        elif is_training and args.ignore_embeddings:
+                            curr_X.append(word_to_id[token.lower()])
                         else:
                             #print("unk*****", token) #if token not in embeddings it's UNK (or mwu if option off)
                             curr_X.append(word_to_id[UNKNOWN])
@@ -111,7 +113,6 @@ def load_word_data(fname, word_to_id, tag_to_id, max_sent_len, is_training=False
                     if re.match('^[0-9\.\,-]+$', token):
                         curr_X.append(word_to_id[NUMBER])
                     else:
-                        #token = ''.join(ch for ch in token if ch not in exclude)
                         if is_training and token.lower() in word_to_id:# and args.mwe and ('~' in token or '-' in token):
                             curr_X.append(word_to_id[token.lower()])
                             #curr_X.append(attempt_reconstruction(token, word_to_id))
@@ -152,8 +153,7 @@ def load_word_data(fname, word_to_id, tag_to_id, max_sent_len, is_training=False
                 if word_id in to_use:
                     filtered_sent.append(filtered_word_to_id[id_to_word[word_id]])
             word_filtered.append(filtered_sent)
-
-        word_to_id = filtered_word_to_id
+        #word_to_id = filtered_word_to_id
         X = word_filtered
 
     X = [s[:max_sent_len-2] for s in X]

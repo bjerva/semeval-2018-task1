@@ -236,58 +236,64 @@ def save_run_information():
 if __name__ == '__main__':
     print("use chars?", args.chars)
 
-    if args.embeddings:
+    if args.embeddings and not args.ignore_embeddings:
         if __debug__: print('Loading embeddings...')
         word_vectors, index_dict, word_embedding_dim = utils.read_word_embeddings(args.embeddings)
         #print(next(key for key, value in index_dict.items() if value == 7241))
         if __debug__: print('Embeddings for {} words loaded'.format(len(word_vectors)))
     else:
         word_embedding_dim = args.word_embedding_dim   ### TODO: if no embeddings given, no index_dict!
-        index_dict = {} # HACK: Empty dict will do for now
-        word_vectors = None
+        index_dict = {}
+        word_vectors = np.random.standard_normal(size=(args.nwords, args.word_embedding_dim))
 
     if __debug__: print('Loading data...')
 
     # Word data must be read even if word features aren't used
     emotions = len(args.train)
 
-    X_train_words = np.empty([0, args.max_sent_len])
+    X_train_words = []
     y_train_labels = []
     y_train_class = np.empty([0, emotions])
 
-    X_dev_words = np.empty([0, args.max_sent_len])
+    X_dev_words = []
     y_dev_labels = []
     y_dev_class = np.empty([0, emotions])
     
-    X_test_words = np.empty([0, args.max_sent_len])
+    X_test_words = []
     y_test_labels = []
     y_test_class = np.empty([0, emotions])
 
     #y_aux_class = np.empty([0, 11])
 
     for index in range(emotions): #HIVER AUX DATA NED HVER ENESTE GANG DER BLIVER LÆST EN AF DE FIRE FILER NED!!!
-        (X_train_word, y_train), (X_dev_word, y_dev), (X_test_word, y_test), (X_aux_words, y_aux), word_vectors = data_utils.read_word_data(args.train[index], args.dev[index], args.test[index], args.aux, index_dict, word_vectors, args.max_sent_len)
-        X_train_words = np.append(X_train_words, X_train_word, axis=0)
+        (X_train_word, y_train), (X_dev_word, y_dev), (X_test_word, y_test), (X_aux_words, y_aux), word_vectors, index_dict = data_utils.read_word_data(args.train[index], args.dev[index], args.test[index], args.aux, index_dict, word_vectors, args.max_sent_len)
+        X_train_words.extend(X_train_word)
         y_train_labels.extend(y_train)
 
         helpme1 = np.zeros([X_train_word.shape[0], emotions])
         helpme1[:,index] = np.ones(X_train_word.shape[0])
         y_train_class = np.append(y_train_class, helpme1, axis=0)
 
-        X_dev_words = np.append(X_dev_words, X_dev_word, axis=0)
+        X_dev_words.extend(X_dev_word)
         y_dev_labels.extend(y_dev)
 
         helpme2 = np.zeros([X_dev_word.shape[0], emotions])
         helpme2[:,index] = np.ones(X_dev_word.shape[0])
         y_dev_class = np.append(y_dev_class, helpme2, axis=0)
 
-        X_test_words = np.append(X_test_words, X_test_word, axis=0)
+        X_test_words.extend(X_test_word)
         y_test_labels.extend(y_test)
 
         helpme3 = np.zeros([X_test_word.shape[0], emotions])
         helpme3[:,index] = np.ones(X_test_word.shape[0])
         y_test_class = np.append(y_test_class, helpme3, axis=0)
 
+    unique_words = len(set(np.concatenate(X_train_words)))
+
+    X_train_words = np.concatenate(X_train_words).reshape(len(X_train_words), args.max_sent_len)
+    X_dev_words = np.concatenate(X_dev_words).reshape(len(X_dev_words), args.max_sent_len)
+    X_test_words = np.concatenate(X_test_words).reshape(len(X_test_words), args.max_sent_len)
+    
     y_aux_class = np.asarray(y_aux)
 
     y_train_labels = np.asarray(y_train_labels)
@@ -296,7 +302,7 @@ if __name__ == '__main__':
 
     import ipdb; ipdb.set_trace()
 
-    nb_classes = 1
+    #nb_classes = 1
     #print(nb_classes)
     #print(len(y_train[0]))
 
@@ -306,7 +312,6 @@ if __name__ == '__main__':
         else:
             vocab_size = len(index_dict)
             #print(vocab_size)
-            cntr = 0
             embedding_weights = np.zeros((vocab_size, word_embedding_dim))
             for word, index in index_dict.items():
                 if __debug__ and word not in word_vectors:
@@ -319,7 +324,6 @@ if __name__ == '__main__':
                 except ValueError:
                     embedding_weights[index,:] = np.zeros(word_embedding_dim)
                     #print(word + " " + str(index_dict[word]))
-        print(cntr)
 
     if args.chars:
         if __debug__:
@@ -351,17 +355,19 @@ if __name__ == '__main__':
         X_test = [X_test_words, X_test_chars]
     
     elif args.chars:
-        X_train = np.asarray(X_train_chars)
+        X_train = X_train_chars
         X_dev = [X_dev_chars, ]
         X_test = [X_test_chars, ]
     elif args.words:
-        X_train = [X_train_words, ]
+        X_train = X_train_words
         X_dev = [X_dev_words, ]
         X_test = [X_test_words, ]
-        
+    
+    import ipdb; ipdb.set_trace()
     model_outputs = [y_train_labels, y_train_class]
     model_losses = ['mean_squared_error', 'categorical_crossentropy']
     model_loss_weights = [0.8, 0.2]
+    import ipdb; ipdb.set_trace()
 
     def mean_pred(y_true, y_pred):
         return K.mean(abs(y_true-y_pred))
@@ -381,8 +387,7 @@ if __name__ == '__main__':
 
     model.summary()
 
-    for train_index, test_index in kf.split(X_train, y_train_labels):
-
+    for train_index, test_index in kf.split(X_train[0], y_train_labels):
         if __debug__: print('Fitting...')
 
         callbacks = [ProgbarLogger()]
@@ -390,8 +395,8 @@ if __name__ == '__main__':
         if args.early_stopping:
             callbacks.append(EarlyStopping(monitor='val_loss', patience=5))
 
-        model.fit(X_train[train_index], [y_train_labels[train_index], y_train_class[train_index]],
-                    validation_data=(X_train[test_index], [y_train_labels[test_index], y_train_class[test_index]]),
+        model.fit([X_train[0][train_index], X_train[1][train_index]], [y_train_labels[train_index], y_train_class[train_index]],
+                    validation_data=([X_train[0][test_index], X_train[1][test_index]], [y_train_labels[test_index], y_train_class[test_index]]),
                     epochs=args.epochs,
                     batch_size=args.bsize,
                     callbacks=callbacks,
