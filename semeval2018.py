@@ -337,7 +337,7 @@ if __name__ == '__main__':
         X_dev_chars = np.empty([0, args.max_word_len])
         X_test_chars = np.empty([0, args.max_word_len])
         for index in range(len(args.train)):
-            X_train_char, X_dev_char, X_test_char = data_utils.read_char_data(args.train[index], args.dev[index], args.test[index], char_to_id, args.max_sent_len, args.max_word_len)
+            X_train_char, X_dev_char, X_test_char, X_aux_chars = data_utils.read_char_data(args.train[index], args.dev[index], args.test[index], args.aux[0], char_to_id, args.max_sent_len, args.max_word_len)
             X_train_chars = np.append(X_train_chars, X_train_char, axis=0)
             X_dev_chars = np.append(X_dev_chars, X_dev_char, axis=0)
             X_test_chars = np.append(X_test_chars, X_test_char, axis=0)
