@@ -339,21 +339,25 @@ if __name__ == '__main__':
         for dummy_char in (SENT_PAD, SENT_START, SENT_END, UNKNOWN):
             char_to_id[dummy_char]
 
-        X_train_chars = np.empty([0, args.max_word_len])
-        X_dev_chars = np.empty([0, args.max_word_len])
-        X_test_chars = np.empty([0, args.max_word_len])
+        X_train_chars = []
+        X_dev_chars = []
+        X_test_chars = []
 
         for index in range(len(args.train)):
             X_train_char, X_dev_char, X_test_char, X_aux_chars = data_utils.read_char_data(args.train[index], args.dev[index], args.test[index], args.aux[0], char_to_id, args.max_sent_len, args.max_word_len)
-            X_train_chars = np.append(X_train_chars, X_train_char, axis=0)
-            X_dev_chars = np.append(X_dev_chars, X_dev_char, axis=0)
-            X_test_chars = np.append(X_test_chars, X_test_char, axis=0)
+            X_train_chars.extend(X_train_char)
+            X_dev_chars.extend(X_dev_char)
+            X_test_chars.extend(X_test_char)
         
-        
+        X_train_chars = np.concatenate(X_train_chars).reshape(len(X_train_chars), args.max_word_len)
+        X_dev_chars = np.concatenate(X_dev_chars).reshape(len(X_dev_chars), args.max_word_len)
+        X_test_chars = np.concatenate(X_test_chars).reshape(len(X_test_chars), args.max_word_len)
+
         char_vocab_size = len(char_to_id)
         if __debug__:
             print('{0} char ids'.format(char_vocab_size))
 
+    import ipdb; ipdb.set_trace()
     if __debug__: print('Building model...')
 
     if args.chars and args.words:
