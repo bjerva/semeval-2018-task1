@@ -329,7 +329,7 @@ if __name__ == '__main__':
                 try:
                     embedding_weights[index,:] = word_vectors[word]
                     #print(word_vectors[word])
-                except ValueError:
+                except ValueError: #tror ikke det er godt det her
                     embedding_weights[index,:] = np.zeros(word_embedding_dim)
                     #print(word + " " + str(index_dict[word]))
 
