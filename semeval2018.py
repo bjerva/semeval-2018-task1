@@ -52,8 +52,10 @@ def build_model():
 
         x = Embedding(char_vocab_size, args.char_embedding_dim, input_length=args.max_word_len)(char_input)
         if args.aux:
-            aux_chars = Embedding(char_vocab_size, args.char_embedding_dim, input_length=args.max_word_len)(aux_chars) #skal de dele weights?
+            aux_x = Embedding(char_vocab_size, args.char_embedding_dim, input_length=args.max_word_len)(aux_chars) #skal de dele weights?
+            aux_x = Reshape((args.max_word_len, args.char_embedding_dim))(aux_x)
         x = Reshape((args.max_word_len, args.char_embedding_dim))(x)
+        
 
         prev_x = x
         for rnet_idx in range(args.resnet):
@@ -95,7 +97,7 @@ def build_model():
             word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len)(word_input)
         if args.aux:
             aux_x = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len)(aux_words)
-            word_embedding = concatenate([word_embedding, aux_words])
+            word_embedding = concatenate([word_embedding, aux_x])
 
         l = GRU(units=int(args.rnn_dim), return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(word_embedding)
         #l = GRU(units=int(args.rnn_dim)/2, return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(l)
@@ -112,8 +114,8 @@ def build_model():
     if args.chars:
         embedding = char_embedding
 
-        if args.aux:
-            embedding = concatenate([embedding, aux_chars])
+        #if args.aux:
+         #   embedding = concatenate([embedding, aux_chars])
 
         if args.bn:
             embedding = BatchNormalization(mode=bn_mode)(embedding)
