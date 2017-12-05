@@ -162,44 +162,44 @@ def evaluate(model):
     TODO: Document
     '''
     print('Dev set results:')
-
     predictions = model.predict(X_dev, batch_size=args.bsize, verbose=1)
-    import ipdb; ipdb.set_trace()
-    calculate_accuracy(predictions, y_dev_labels)
-    import ipdb; ipdb.set_trace()
+    calculate_accuracy(predictions, y_dev_reg, y_dev_class)
+
     if args.test:
         print('Test set')
         predictions = model.predict(X_test, batch_size=args.bsize, verbose=1)
-        calculate_accuracy(predictions, y_test_labels)
+        calculate_accuracy(predictions, y_test_reg, y_test_class)
 
     print('Sanity check on train set:')
     predictions = model.predict(X_train, batch_size=args.bsize, verbose=1)
-    calculate_accuracy(predictions, y_train_labels)
+    calculate_accuracy(predictions, y_train_reg, y_train_class)
 
-def calculate_accuracy(prediction, gold_reg):
+def calculate_accuracy(prediction, gold_reg, gold_class):
     '''
     TODO: Document
     '''
-    
-    sent_tags = []
-    corr, err = 0,0
+    corr_list = np.zeros(11)
+    err_list = np.zeros(11)
+
     diff = 0
     for i, pred_reg in enumerate(prediction[0]):
         diff += abs(gold_reg[i] - pred_reg)
-
-    '''
+    
     for i, prob_class in enumerate(prediction[1]):
-        pred_class = np.argmax(prob_class)
-        if pred_class == np.argmax(gold_class[i]):
-            corr += 1
-        else:
-            err += 1
-    '''
+        pred_class = np.zeros(pred_class.shape)
+        pred_class[prob_class > 0.5] = 1
+        for j, pred in enumerate(pred_class):
+            if pred == gold_class[i][j]):
+                corr_list[j] = 1
+            else:
+                err_list[j] = 1
+        
+    
     import ipdb; ipdb.set_trace()
     reg_accuracy = pearsonr(np.asarray(prediction[0]), np.reshape(gold_reg, (len(gold_reg),1)))
     print('Regression accuracy:', reg_accuracy)
-    #class_accuracy = corr/float(corr+err)
-    #print('Classification accuracy', class_accuracy)
+    class_accuracy = np.sum(corr_list)/np.sum(corr_list)+np.sum(err_list)
+    print('Classification accuracy', class_accuracy)
 
     return prediction, reg_accuracy
 
@@ -337,7 +337,7 @@ if __name__ == '__main__':
         X_test = X_test_word
     
     model_outputs = [y_train_reg, y_train_class]
-    model_losses = ['mean_squared_error', 'categorical_crossentropy'] #, 'categorical_crossentropy'
+    model_losses = ['mean_squared_error', 'binary_crossentropy'] #, 'categorical_crossentropy'
     model_loss_weights = [0.8, 0.2]
 
     def mean_pred(y_true, y_pred):
