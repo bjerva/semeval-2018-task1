@@ -18,11 +18,13 @@ from keras.models import Model
 from keras.layers.embeddings import Embedding
 from keras.layers import LSTM, GRU, Input, add, concatenate, BatchNormalization
 from keras.layers.wrappers import TimeDistributed
-from keras.layers.core import Dense, Dropout, Activation, Flatten, Reshape, Lambda
+from keras.layers.core import Dense, Dropout, Activation, Flatten, Reshape, Lambda, Masking
 from keras.layers.convolutional import Convolution1D, MaxPooling1D
 from keras import backend as K
 from keras.callbacks import TensorBoard, EarlyStopping, ModelCheckpoint, ProgbarLogger
 from keras import metrics
+from keras import optimizers
+
 
 # Standard
 import os
@@ -49,10 +51,8 @@ def build_model():
         char_input = Input(shape=(args.max_word_len, ), dtype='int32', name='char_input')
 
         x = Embedding(char_vocab_size, args.char_embedding_dim, input_length=args.max_word_len)(char_input)
-
         x = Reshape((args.max_word_len, args.char_embedding_dim))(x)
         
-
         prev_x = x
         for rnet_idx in range(args.resnet):
             if args.bn:
@@ -85,7 +85,6 @@ def build_model():
 
     if args.words:
         word_input = Input(shape=(args.max_sent_len, ), dtype='int32', name='word_input')
-
         if not args.ignore_embeddings:
             word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len, weights=[embedding_weights], trainable=(args.freeze))(word_input)
         else:
@@ -140,8 +139,10 @@ def build_model():
         x = word_x
 
     # Output layer
+    #aux_mask
     aux_output = Dense(11, activation='sigmoid', name='aux_output')(x)
     #pre_main = concatenate([x, aux_output])
+    #main_mask
     main_output = Dense(1, activation='linear', name='main_output')(x)
 
     if args.chars and args.words:
@@ -186,19 +187,19 @@ def calculate_accuracy(prediction, gold_reg, gold_class):
         diff += abs(gold_reg[i] - pred_reg)
     
     for i, prob_class in enumerate(prediction[1]):
-        pred_class = np.zeros(pred_class.shape)
+        pred_class = np.zeros(11)
         pred_class[prob_class > 0.5] = 1
         for j, pred in enumerate(pred_class):
-            if pred == gold_class[i][j]):
-                corr_list[j] = 1
+            if pred == gold_class[i][j]:
+                corr_list[j] += 1
             else:
-                err_list[j] = 1
+                err_list[j] += 1
         
     
     import ipdb; ipdb.set_trace()
     reg_accuracy = pearsonr(np.asarray(prediction[0]), np.reshape(gold_reg, (len(gold_reg),1)))
     print('Regression accuracy:', reg_accuracy)
-    class_accuracy = np.sum(corr_list)/np.sum(corr_list)+np.sum(err_list)
+    class_accuracy = np.sum(corr_list)/(np.sum(corr_list)+np.sum(err_list))
     print('Classification accuracy', class_accuracy)
 
     return prediction, reg_accuracy
@@ -336,7 +337,7 @@ if __name__ == '__main__':
         X_dev = X_dev_word
         X_test = X_test_word
     
-    model_outputs = [y_train_reg, y_train_class]
+    model_outputs = [y_train_reg, y_train_class]        
     model_losses = ['mean_squared_error', 'binary_crossentropy'] #, 'categorical_crossentropy'
     model_loss_weights = [0.8, 0.2]
 
@@ -351,7 +352,9 @@ if __name__ == '__main__':
 
     kf = KFold(n_splits=2, shuffle=True)
 
-    model.compile(optimizer='adam',
+    adam = optimizers.adam(lr=0.001)
+    
+    model.compile(optimizer=adam,
         loss=model_losses,
         loss_weights=model_loss_weights,
         metrics=model_metrics)
