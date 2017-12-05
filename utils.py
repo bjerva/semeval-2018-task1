@@ -103,9 +103,9 @@ def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_l
             X.append(curr_X)
             if len(labels) <= 2:
                 labels = labels[1:]
-                labels.extend([0]*11)
+                labels.extend([-1]*11)
             elif len(labels) == 11:
-                labels.insert(0, 0)
+                labels.insert(0, -1)
             floats = [float(x) for x in labels]
             y.append(floats)
             curr_X = []#word_to_id[SENT_CONT]]
