@@ -358,20 +358,19 @@ if __name__ == '__main__':
 
     model.summary()
     import ipdb; ipdb.set_trace()
-    for train_index, test_index in kf.split(X_train[0]):
-        if __debug__: print('Fitting...')
-        import ipdb; ipdb.set_trace()
-        callbacks = [ProgbarLogger()]
+    if __debug__: print('Fitting...')
+    import ipdb; ipdb.set_trace()
+    callbacks = [ProgbarLogger()]
 
-        if args.early_stopping:
-            callbacks.append(EarlyStopping(monitor='val_loss', patience=5))
+    if args.early_stopping:
+        callbacks.append(EarlyStopping(monitor='val_loss', patience=5))
 
-        model.fit([X_train[0][train_index], X_train[1][train_index]], [y_train_reg[train_index], y_train_class[train_index]],
-                    validation_data=([X_train[0][test_index], X_train[1][test_index]], [y_train_reg[test_index], y_train_class[test_index]]),
-                    epochs=args.epochs,
-                    batch_size=args.bsize,
-                    callbacks=callbacks,
-                    verbose=args.verbose)
+    model.fit([X_train[0], X_train[1]], [y_train_reg, y_train_class],
+                validation_data=([X_dev[0], X_dev[1]], [y_dev_reg, y_dev_class]),
+                epochs=args.epochs,
+                batch_size=args.bsize,
+                callbacks=callbacks,
+                verbose=args.verbose)
 
     if __debug__:
         print(args)
