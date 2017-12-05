@@ -49,13 +49,8 @@ def build_model():
     bn_mode = 1
     if args.chars:
         char_input = Input(shape=(args.max_word_len, ), dtype='int32', name='char_input')
-        x = Masking(mask_value=-1)(char_input)
-
-<<<<<<< HEAD
+        
         x = Embedding(char_vocab_size, args.char_embedding_dim, input_length=args.max_word_len)(char_input)
-=======
-        x = Embedding(char_vocab_size, args.char_embedding_dim, input_length=args.max_word_len)(x)
->>>>>>> 53ab3399393561e3e5daaf5baf12de8151cf3800
         x = Reshape((args.max_word_len, args.char_embedding_dim))(x)
         
         prev_x = x
@@ -90,14 +85,10 @@ def build_model():
 
     if args.words:
         word_input = Input(shape=(args.max_sent_len, ), dtype='int32', name='word_input')
-<<<<<<< HEAD
-=======
-        x = Masking(mask_value=-1)(word_input)
->>>>>>> 53ab3399393561e3e5daaf5baf12de8151cf3800
         if not args.ignore_embeddings:
-            word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len, weights=[embedding_weights], trainable=(args.freeze))(x)
+            word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len, weights=[embedding_weights], trainable=(args.freeze))(word_input)
         else:
-            word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len)(x)
+            word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len)(word_input)
 
         l = GRU(units=int(args.rnn_dim), return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(word_embedding)
         #l = GRU(units=int(args.rnn_dim)/2, return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(l)
@@ -377,10 +368,12 @@ if __name__ == '__main__':
     if args.early_stopping:
         callbacks.append(EarlyStopping(monitor='val_loss', patience=5))
 
+    class_dict = {7102: 1, 13940:0}
     model.fit([X_train[0], X_train[1]], [y_train_reg, y_train_class],
                 validation_data=([X_dev[0], X_dev[1]], [y_dev_reg, y_dev_class]),
                 epochs=args.epochs,
                 batch_size=args.bsize,
+                class_weight=class_dict,
                 callbacks=callbacks,
                 verbose=args.verbose)
 
