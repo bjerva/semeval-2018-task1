@@ -24,7 +24,8 @@ from keras import backend as K
 from keras.callbacks import TensorBoard, EarlyStopping, ModelCheckpoint, ProgbarLogger
 from keras import metrics
 from keras import optimizers
-
+from keras.utils import plot_model
+import pydot
 
 # Standard
 import os
@@ -360,6 +361,8 @@ if __name__ == '__main__':
         metrics=model_metrics)
 
     model.summary()
+    #plot_model(model, to_file='model.png')
+
     import ipdb; ipdb.set_trace()
     if __debug__: print('Fitting...')
     import ipdb; ipdb.set_trace()
