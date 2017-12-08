@@ -339,23 +339,25 @@ if __name__ == '__main__':
         X_dev = X_dev_word
         X_test = X_test_word
     
+    CLASS_MASK = tf.convert_to_tensor([-1.0]*11)
+    REG_MASK = tf.convert_to_tensor([-1.0])
+
     def customMainLoss(y_true, y_pred):
-        return K.sum(K.switch(K.equal(y_true, 0.0), y_true, K.square(y_true - y_pred)))
+        return K.sum(K.switch(K.equal(y_true, REG_MASK), tf.multiply(y_true,0), K.square(y_true - y_pred)))
 
     def customAuxLoss(y_true, y_pred):
-        #print(K.mean(K.binary_crossentropy(y_true[7102:,:], y_pred[7102:,:])))
-        return K.mean(K.binary_crossentropy(y_true[1:], y_pred[1:]))
+        return K.mean(K.switch(K.equal(y_true, CLASS_MASK), tf.multiply(y_true,0), K.binary_crossentropy(y_true, y_pred)))
 
     model_outputs = [y_train_reg, y_train_class]
     model_losses = {'main_output' : customMainLoss, 
                     'aux_output' : customAuxLoss} #, 'categorical_crossentropy'
-    model_loss_weights = [0.5, 0.5]
+    model_loss_weights = [0.8, 0.2]
 
     def mean_pred(y_true, y_pred):
         return K.mean(abs(y_true-y_pred))
 
     model_metrics = {'main_output' : mean_pred,
-                     'aux_output' : metrics.categorical_accuracy} #accuracy
+                     'aux_output' : metrics.binary_accuracy} #accuracy
 
 
     model = build_model()
