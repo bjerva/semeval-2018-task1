@@ -338,9 +338,17 @@ if __name__ == '__main__':
         X_dev = X_dev_word
         X_test = X_test_word
     
-    model_outputs = [y_train_reg, y_train_class]       
-    model_losses = ['mean_squared_error', 'binary_crossentropy'] #, 'categorical_crossentropy'
-    model_loss_weights = [0.8, 0.2]
+    def customMainLoss(y_true, y_pred):
+        return K.mean((y_true[:7102] - y_pred[:7102])**2)
+
+    def customAuxLoss(y_true, y_pred):
+        #print(K.mean(K.binary_crossentropy(y_true[7102:,:], y_pred[7102:,:])))
+        return K.mean(K.binary_crossentropy(y_true[7102:,:], y_pred[7102:,:]))
+
+    model_outputs = [y_train_reg, y_train_class]
+    model_losses = {'main_output' : customMainLoss, 
+                    'aux_output' : customAuxLoss} #, 'categorical_crossentropy'
+    model_loss_weights = [0.5, 0.5]
 
     def mean_pred(y_true, y_pred):
         return K.mean(abs(y_true-y_pred))
