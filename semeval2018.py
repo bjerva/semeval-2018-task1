@@ -26,6 +26,7 @@ from keras import metrics
 from keras import optimizers
 from keras.utils import plot_model
 import pydot
+import tensorflow as tf
 
 # Standard
 import os
@@ -339,11 +340,11 @@ if __name__ == '__main__':
         X_test = X_test_word
     
     def customMainLoss(y_true, y_pred):
-        return K.mean((y_true[:7102] - y_pred[:7102])**2)
+        return K.sum(K.switch(K.equal(y_true, 0.0), y_true, K.square(y_true - y_pred)))
 
     def customAuxLoss(y_true, y_pred):
         #print(K.mean(K.binary_crossentropy(y_true[7102:,:], y_pred[7102:,:])))
-        return K.mean(K.binary_crossentropy(y_true[7102:,:], y_pred[7102:,:]))
+        return K.mean(K.binary_crossentropy(y_true[1:], y_pred[1:]))
 
     model_outputs = [y_train_reg, y_train_class]
     model_losses = {'main_output' : customMainLoss, 
