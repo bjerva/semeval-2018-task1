@@ -338,7 +338,7 @@ if __name__ == '__main__':
         X_dev = X_dev_word
         X_test = X_test_word
     
-    model_outputs = [y_train_reg, y_train_class]        
+    model_outputs = [y_train_reg, y_train_class]       
     model_losses = ['mean_squared_error', 'binary_crossentropy'] #, 'categorical_crossentropy'
     model_loss_weights = [0.8, 0.2]
 
@@ -371,12 +371,10 @@ if __name__ == '__main__':
     if args.early_stopping:
         callbacks.append(EarlyStopping(monitor='val_loss', patience=5))
 
-    class_dict = {7102: 1, 13940:0}
-    model.fit([X_train[0], X_train[1]], [y_train_reg, y_train_class],
-                validation_data=([X_dev[0], X_dev[1]], [y_dev_reg, y_dev_class]),
+    model.fit(X_train, model_outputs,
+                validation_data=(X_dev, [y_dev_reg, y_dev_class]),
                 epochs=args.epochs,
                 batch_size=args.bsize,
-                class_weight=class_dict,
                 callbacks=callbacks,
                 verbose=args.verbose)
 
