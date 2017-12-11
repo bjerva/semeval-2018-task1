@@ -140,6 +140,8 @@ def build_model():
     elif args.words:
         x = word_x
 
+    x = Dense(args.char_embedding_dim+args.word_embedding_dim, activation='relu')(x)
+
     # Output layer
     #aux_mask
     aux_output = Dense(11, activation='sigmoid', name='aux_output')(x)
@@ -198,7 +200,6 @@ def calculate_accuracy(prediction, gold_reg, gold_class):
                 err_list[j] += 1
         
     
-    import ipdb; ipdb.set_trace()
     reg_accuracy = pearsonr(np.asarray(prediction[0]), np.reshape(gold_reg, (len(gold_reg),1)))
     print('Regression accuracy:', reg_accuracy)
     class_accuracy = np.sum(corr_list)/(np.sum(corr_list)+np.sum(err_list))
@@ -346,7 +347,7 @@ if __name__ == '__main__':
         return K.sum(K.switch(K.equal(y_true, REG_MASK), tf.multiply(y_true,0), K.square(y_true - y_pred)))
 
     def customAuxLoss(y_true, y_pred):
-        return K.mean(K.switch(K.equal(y_true, CLASS_MASK), tf.multiply(y_true,0), K.binary_crossentropy(y_true, y_pred)))
+        return K.mean(K.switch(K.equal(y_true, CLASS_MASK), tf.multiply(y_true,0), K.binary_crossentropy(y_true, y_pred)), axis=1)
 
     model_outputs = [y_train_reg, y_train_class]
     model_losses = {'main_output' : customMainLoss, 
@@ -374,10 +375,8 @@ if __name__ == '__main__':
     model.summary()
     #plot_model(model, to_file='model.png')
 
-    import ipdb; ipdb.set_trace()
     if __debug__: print('Fitting...')
-    import ipdb; ipdb.set_trace()
-    callbacks = [ProgbarLogger()]
+    callbacks = [TensorBoard()]
 
     if args.early_stopping:
         callbacks.append(EarlyStopping(monitor='val_loss', patience=5))
@@ -394,5 +393,6 @@ if __name__ == '__main__':
         print('Evaluating...')
 
     evaluate(model)
+    model.save("model.h5")
 
     print('Completed: {0}'.format(experiment_tag))
