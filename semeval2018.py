@@ -30,6 +30,7 @@ import tensorflow as tf
 
 # Standard
 import os
+import sys
 import argparse
 from collections import defaultdict
 
@@ -39,6 +40,8 @@ import data_utils
 from analysis import write_confusion_matrix, prepare_error_analysis
 from config import *
 
+sys.path.append('../')
+import kode.testkode.eval as ev
 from scipy.stats import pearsonr
 from sklearn.model_selection import KFold
 
@@ -88,7 +91,7 @@ def build_model():
     if args.words:
         word_input = Input(shape=(args.max_sent_len, ), dtype='int32', name='word_input')
         if not args.ignore_embeddings:
-            word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len, weights=[embedding_weights], trainable=(args.freeze))(word_input)
+            word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len, weights=[embedding_weights], trainable=(not args.freeze))(word_input)
         else:
             word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len)(word_input)
 
@@ -178,18 +181,49 @@ def evaluate(model):
     '''
     TODO: Document
     '''
-    print('Dev set results:')
-    predictions = model.predict(X_dev, batch_size=args.bsize, verbose=1)
-    calculate_accuracy(predictions, y_dev_reg, y_dev_class)
+    train_preds = model.predict(X_train, batch_size=args.bsize, verbose=1)
+    dev_preds = model.predict(X_dev, batch_size=args.bsize, verbose=1)
+    test_preds = model.predict(X_test, batch_size=args.bsize, verbose=1)
+    
+    for i in range(11):
+        train_preds[i+1] = np.round(train_preds[i+1])
+        dev_preds[i+1] = np.round(dev_preds[i+1])
+        test_preds[i+1] = np.round(test_preds[i+1])
 
-    if args.test:
-        print('Test set')
-        predictions = model.predict(X_test, batch_size=args.bsize, verbose=1)
-        calculate_accuracy(predictions, y_test_reg, y_test_class)
+    train_preds = np.c_[train_preds[0],train_preds[1],train_preds[2],train_preds[3],train_preds[4],train_preds[5],
+                        train_preds[6],train_preds[7],train_preds[8],train_preds[9],train_preds[10],train_preds[11]]
 
-    print('Sanity check on train set:')
-    predictions = model.predict(X_train, batch_size=args.bsize, verbose=1)
-    calculate_accuracy(predictions, y_train_reg, y_train_class)
+    dev_preds = np.c_[dev_preds[0],dev_preds[1],dev_preds[2],dev_preds[3],dev_preds[4],dev_preds[5],
+                        dev_preds[6],dev_preds[7],dev_preds[8],dev_preds[9],dev_preds[10],dev_preds[11]]
+
+    test_preds = np.c_[test_preds[0],test_preds[1],test_preds[2],test_preds[3],test_preds[4],test_preds[5],
+                        test_preds[6],test_preds[7],test_preds[8],test_preds[9],test_preds[10],test_preds[11]]
+
+    import ipdb; ipdb.set_trace()
+    ev.evaluate([train_preds[:,0][:train_lengths[0]],train_preds[:,0][train_lengths[0]:train_lengths[1]],
+                train_preds[:,0][train_lengths[1]:train_lengths[2]],train_preds[:,0][train_lengths[2]:train_lengths[3]]],
+                [y_train_reg[:train_lengths[0]],y_train_reg[train_lengths[0]:train_lengths[1]],
+                y_train_reg[train_lengths[1]:train_lengths[2]],y_train_reg[train_lengths[2]:train_lengths[3]]],
+
+                [dev_preds[:,0][:dev_lengths[0]],dev_preds[:,0][dev_lengths[0]:dev_lengths[1]],
+                dev_preds[:,0][dev_lengths[1]:dev_lengths[2]],dev_preds[:,0][dev_lengths[2]:dev_lengths[3]]],
+                [y_dev_reg[:dev_lengths[0]],y_dev_reg[dev_lengths[0]:dev_lengths[1]],
+                y_dev_reg[dev_lengths[1]:dev_lengths[2]],y_dev_reg[dev_lengths[2]:dev_lengths[3]]],
+
+                [test_preds[:,0][:test_lengths[0]],test_preds[:,0][test_lengths[0]:test_lengths[1]],
+                test_preds[:,0][test_lengths[1]:test_lengths[2]],test_preds[:,0][test_lengths[2]:test_lengths[3]]],
+                [y_test_reg[:test_lengths[0]],y_test_reg[test_lengths[0]:test_lengths[1]],
+                y_test_reg[test_lengths[1]:test_lengths[2]],y_test_reg[test_lengths[2]:test_lengths[3]]])
+    
+    ev.evaluate(train_preds[:,1:][train_lengths[3]:train_lengths[4]],
+                y_train_class[train_lengths[3]:train_lengths[4]],
+
+                dev_preds[:,1:][dev_lengths[3]:dev_lengths[4]],
+                y_dev_class[dev_lengths[3]:dev_lengths[4]],
+
+                test_preds[:,1:][test_lengths[3]:test_lengths[4]],
+                y_test_class[test_lengths[3]:test_lengths[4]])
+
 
 def calculate_accuracy(prediction, gold_reg, gold_class):
     '''
@@ -276,7 +310,7 @@ if __name__ == '__main__':
 
     #y_aux_class = np.empty([0, 11])
     
-    (X_train_word, y_train), (X_dev_word, y_dev), (X_test_word, y_test), word_vectors, index_dict = data_utils.read_word_data(args.train, args.dev, args.test, index_dict, word_vectors, args.max_sent_len)
+    (X_train_word, y_train), (X_dev_word, y_dev), (X_test_word, y_test), word_vectors, index_dict, train_lengths, dev_lengths, test_lengths = data_utils.read_word_data(args.train, args.dev, args.test, index_dict, word_vectors, args.max_sent_len)
 
     X_train_word = np.asarray(X_train_word)
     X_dev_word = np.asarray(X_dev_word)
@@ -353,16 +387,41 @@ if __name__ == '__main__':
         X_test = X_test_word
     
     MASK = tf.convert_to_tensor([-1.0])
+    CLASS_MASK = tf.convert_to_tensor([-1.0])
 
     def customMainLoss(y_true, y_pred):
         return K.sum(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), K.square(y_true - y_pred)))
 
+
+    def create_weighted_binary_crossentropy(zero_weight, one_weight):
+
+        def weighted_binary_crossentropy(y_true, y_pred):
+
+            # Original binary crossentropy (see losses.py):
+            # K.mean(K.binary_crossentropy(y_true, y_pred), axis=-1)
+
+            # Calculate the binary crossentropy
+            b_ce = K.binary_crossentropy(y_true, y_pred)
+
+            # Apply the weights
+            weight_vector = y_true * one_weight + (1. - y_true) * zero_weight
+            weighted_b_ce = weight_vector * b_ce
+
+            # Return the mean error
+            return weighted_b_ce
+
+        return weighted_binary_crossentropy
+
+    weighted_binary_crossentropy = create_weighted_binary_crossentropy(0.11, 0.89)
+
+
     def customAuxLoss(y_true, y_pred):
-        return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), K.binary_crossentropy(y_true, y_pred)))
+        return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), weighted_binary_crossentropy(y_true, y_pred)),axis=1)
 
     model_outputs = [y_train_reg, y_train_class[:,0], y_train_class[:,1], y_train_class[:,2], y_train_class[:,3],
                     y_train_class[:,4], y_train_class[:,5], y_train_class[:,6], y_train_class[:,7],
                     y_train_class[:,8], y_train_class[:,9], y_train_class[:,10]]
+
     model_losses = {'main_output' : customMainLoss, 
                     'anger_output' : customAuxLoss,
                     'anticipation_output' : customAuxLoss,
@@ -382,7 +441,7 @@ if __name__ == '__main__':
 
 
     def customAuxMetric(y_true, y_pred):
-        return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), K.binary_accuracy(y_true, y_pred)))
+        return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,-1.0), K.cast(K.equal(y_true, K.round(y_pred)),dtype='float32')))
 
     model_metrics = {'main_output' : customMainMetric,
                     'anger_output' : customAuxMetric,
@@ -422,6 +481,7 @@ if __name__ == '__main__':
                     y_dev_class[:,4], y_dev_class[:,5], y_dev_class[:,6], y_dev_class[:,7],
                     y_dev_class[:,8], y_dev_class[:,9], y_dev_class[:,10]]),
                 epochs=args.epochs,
+                shuffle=True,
                 batch_size=args.bsize,
                 callbacks=callbacks,
                 verbose=args.verbose)

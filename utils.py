@@ -70,11 +70,12 @@ def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_l
     """
     print("reading ",fname)
     X, y = [], []
-
+    length = 0
     with open(fname, 'r', encoding='utf-8') as in_f:
         next(in_f) #Skipper first line
         curr_X, curr_y = [], []
         for line in in_f:
+            length +=1
             #line = line.strip()
             #if len(line) == 0: continue
             content = line.strip().split('\t')
@@ -151,7 +152,7 @@ def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_l
         dsetname = os.path.basename(fname).rstrip('.conllu')
         save_ids(word_to_id, tag_to_id, dsetname)
 
-    return X, y, word_to_id, filtered_word_to_id, tag_to_id
+    return X, y, word_to_id, filtered_word_to_id, tag_to_id, length
 
 def save_ids(word_to_id, tag_to_id, fname):
     write_mapping(word_to_id, experiment_dir+'/{0}_word2id.txt'.format(fname))
