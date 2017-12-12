@@ -431,6 +431,6 @@ if __name__ == '__main__':
         print('Evaluating...')
 
     evaluate(model)
-    model.save("model.h5")
+    model.save("{0}.h5".format(experiment_tag))
 
     print('Completed: {0}'.format(experiment_tag))
