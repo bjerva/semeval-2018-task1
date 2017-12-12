@@ -144,7 +144,17 @@ def build_model():
 
     # Output layer
     #aux_mask
-    aux_output = Dense(11, activation='sigmoid', name='aux_output')(x)
+    anger_output = Dense(1, activation='sigmoid', name='anger_output')(x)
+    anticipation_output = Dense(1, activation='sigmoid', name='anticipation_output')(x)
+    disgust_output = Dense(1, activation='sigmoid', name='disgust_output')(x)
+    fear_output = Dense(1, activation='sigmoid', name='fear_output')(x)
+    joy_output = Dense(1, activation='sigmoid', name='joy_output')(x)
+    love_output = Dense(1, activation='sigmoid', name='love_output')(x)
+    optimism_output = Dense(1, activation='sigmoid', name='optimism_output')(x)
+    pessimism_output = Dense(1, activation='sigmoid', name='pessimism_output')(x)
+    sadness_output = Dense(1, activation='sigmoid', name='sadness_output')(x)
+    surprise_output = Dense(1, activation='sigmoid', name='surprise_output')(x)
+    trust_output = Dense(1, activation='sigmoid', name='trust_output')(x)
     #pre_main = concatenate([x, aux_output])
     #main_mask
     main_output = Dense(1, activation='linear', name='main_output')(x)
@@ -156,7 +166,9 @@ def build_model():
     elif args.words:
         model_input = [word_input, ]
 
-    model_output = [main_output, aux_output] #, main_class_output
+    model_output = [main_output, anger_output, anticipation_output, disgust_output, fear_output,
+                    joy_output, love_output, optimism_output, pessimism_output, sadness_output,
+                    surprise_output, trust_output]
 
     model = Model(inputs=model_input, outputs=model_output)
 
@@ -340,26 +352,50 @@ if __name__ == '__main__':
         X_dev = X_dev_word
         X_test = X_test_word
     
-    CLASS_MASK = tf.convert_to_tensor([-1.0]*11)
-    REG_MASK = tf.convert_to_tensor([-1.0])
+    MASK = tf.convert_to_tensor([-1.0])
 
     def customMainLoss(y_true, y_pred):
-        return K.sum(K.switch(K.equal(y_true, REG_MASK), tf.multiply(y_true,0), K.square(y_true - y_pred)))
+        return K.sum(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), K.square(y_true - y_pred)))
 
     def customAuxLoss(y_true, y_pred):
-        return K.mean(K.switch(K.equal(y_true, CLASS_MASK), tf.multiply(y_true,0), K.binary_crossentropy(y_true, y_pred)), axis=1)
+        return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), K.binary_crossentropy(y_true, y_pred)))
 
-    model_outputs = [y_train_reg, y_train_class]
+    model_outputs = [y_train_reg, y_train_class[:,0], y_train_class[:,1], y_train_class[:,2], y_train_class[:,3],
+                    y_train_class[:,4], y_train_class[:,5], y_train_class[:,6], y_train_class[:,7],
+                    y_train_class[:,8], y_train_class[:,9], y_train_class[:,10]]
     model_losses = {'main_output' : customMainLoss, 
-                    'aux_output' : customAuxLoss} #, 'categorical_crossentropy'
-    model_loss_weights = [0.8, 0.2]
+                    'anger_output' : customAuxLoss,
+                    'anticipation_output' : customAuxLoss,
+                    'disgust_output' : customAuxLoss,
+                    'fear_output' : customAuxLoss,
+                    'joy_output' : customAuxLoss,
+                    'love_output' : customAuxLoss,
+                    'optimism_output' : customAuxLoss,
+                    'pessimism_output' : customAuxLoss,
+                    'sadness_output' : customAuxLoss,
+                    'surprise_output' : customAuxLoss,
+                    'trust_output' : customAuxLoss} #, 'categorical_crossentropy'
+    model_loss_weights = [0.45, 0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05]
 
-    def mean_pred(y_true, y_pred):
-        return K.mean(abs(y_true-y_pred))
+    def customMainMetric(y_true, y_pred):
+        return K.sum(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), K.abs(y_true - y_pred)))
 
-    model_metrics = {'main_output' : mean_pred,
-                     'aux_output' : metrics.binary_accuracy} #accuracy
 
+    def customAuxMetric(y_true, y_pred):
+        return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), K.binary_accuracy(y_true, y_pred)))
+
+    model_metrics = {'main_output' : customMainMetric,
+                    'anger_output' : customAuxMetric,
+                    'anticipation_output' : customAuxMetric,
+                    'disgust_output' : customAuxMetric,
+                    'fear_output' : customAuxMetric,
+                    'joy_output' : customAuxMetric,
+                    'love_output' : customAuxMetric,
+                    'optimism_output' : customAuxMetric,
+                    'pessimism_output' : customAuxMetric,
+                    'sadness_output' : customAuxMetric,
+                    'surprise_output' : customAuxMetric,
+                    'trust_output' : customAuxMetric} #, 'categorical_crossentropy'
 
     model = build_model()
 
@@ -380,9 +416,11 @@ if __name__ == '__main__':
 
     if args.early_stopping:
         callbacks.append(EarlyStopping(monitor='val_loss', patience=5))
-
+    import ipdb; ipdb.set_trace()
     model.fit(X_train, model_outputs,
-                validation_data=(X_dev, [y_dev_reg, y_dev_class]),
+                validation_data=(X_dev, [y_dev_reg, y_dev_class[:,0], y_dev_class[:,1], y_dev_class[:,2], y_dev_class[:,3],
+                    y_dev_class[:,4], y_dev_class[:,5], y_dev_class[:,6], y_dev_class[:,7],
+                    y_dev_class[:,8], y_dev_class[:,9], y_dev_class[:,10]]),
                 epochs=args.epochs,
                 batch_size=args.bsize,
                 callbacks=callbacks,
