@@ -101,3 +101,5 @@ ENV/
 
 .DS_Store
 embeddings.txt
+events.*
+model.h5
