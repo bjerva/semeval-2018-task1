@@ -63,7 +63,7 @@ def load_character_data(fname, char_to_id, max_sent_len, max_word_len=32, is_aux
     #
     # return cut_X
 
-def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len, is_training=False):
+def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len, y_dict={}, is_training=False):
     """
     Reading of CoNLL file, converting to word ids.
     If is_training, unknown mwes will be added to the embedding dictionary using a heuristic.
@@ -89,10 +89,10 @@ def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_l
                     curr_X.append(word_to_id[NUMBER])
                 else:
                     #token = ''.join(ch for ch in token if ch not in exclude)
-                    if is_training and token.lower() in word_to_id:# and args.mwe and ('~' in token or '-' in token):
+                    if token.lower() in word_to_id:# and args.mwe and ('~' in token or '-' in token):
                         curr_X.append(word_to_id[token.lower()])
                         #curr_X.append(attempt_reconstruction(token, word_to_id))
-                    elif is_training and args.ignore_embeddings:
+                    elif args.ignore_embeddings:
                         curr_X.append(word_to_id[token.lower()])
                     else:
                         #print("unk*****", token) #if token not in embeddings it's UNK (or mwu if option off)
@@ -102,13 +102,27 @@ def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_l
 
             #if args.shorten_sents and len(curr_X) >= max_sent_len-2:
             X.append(curr_X)
-            if len(labels) <= 2:
-                labels = labels[1:]
-                labels.extend([-1.0]*11)
-            elif len(labels) == 11:
-                labels.insert(0, -1.0)
-            floats = [float(x) for x in labels]
-            y.append(floats)
+            
+            if is_training:
+                if len(labels) <= 2:
+                    floats = [float(labels[1])]
+                    try:
+                        floats.extend(y_dict[sent_id])
+                    except KeyError:
+                        print(sent_id)
+                        floats.extend([-1.0]*11)
+                    y.append(floats)
+                else:
+                    floats = [float(x) for x in labels]
+                    y_dict[sent_id] = floats 
+            else:
+                if len(labels) <= 2:
+                    labels = labels[1:]
+                    labels.extend([-1.0]*11)
+                elif len(labels) == 11:
+                    labels.insert(0, -1.0)
+                floats = [float(x) for x in labels]
+                y.append(floats)
             curr_X = []#word_to_id[SENT_CONT]]
                 #curr_y = []#tag_to_id[SENT_CONT]]
     ## get some stats on dataset
@@ -152,7 +166,7 @@ def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_l
         dsetname = os.path.basename(fname).rstrip('.conllu')
         save_ids(word_to_id, tag_to_id, dsetname)
 
-    return X, y, word_to_id, filtered_word_to_id, tag_to_id, length
+    return X, y, word_to_id, filtered_word_to_id, tag_to_id, length, y_dict
 
 def save_ids(word_to_id, tag_to_id, fname):
     write_mapping(word_to_id, experiment_dir+'/{0}_word2id.txt'.format(fname))

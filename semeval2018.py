@@ -214,14 +214,14 @@ def evaluate(model):
                 [y_test_reg[:test_lengths[0]],y_test_reg[test_lengths[0]:test_lengths[1]],
                 y_test_reg[test_lengths[1]:test_lengths[2]],y_test_reg[test_lengths[2]:test_lengths[3]]])
     
-    ev.evaluate(train_preds[:,1:][train_lengths[3]:train_lengths[4]],
-                y_train_class[train_lengths[3]:train_lengths[4]],
+    ev.evaluate(train_preds[:,1:],
+                y_train_class,
 
-                dev_preds[:,1:][dev_lengths[3]:dev_lengths[4]],
-                y_dev_class[dev_lengths[3]:dev_lengths[4]],
+                dev_preds[:,1:],
+                y_dev_class,
 
-                test_preds[:,1:][test_lengths[3]:test_lengths[4]],
-                y_test_class[test_lengths[3]:test_lengths[4]])
+                test_preds[:,1:],
+                y_test_class)
 
 
 def calculate_accuracy(prediction, gold_reg, gold_class):
@@ -309,7 +309,7 @@ if __name__ == '__main__':
 
     #y_aux_class = np.empty([0, 11])
     
-    (X_train_word, y_train), (X_dev_word, y_dev), (X_test_word, y_test), word_vectors, index_dict, train_lengths, dev_lengths, test_lengths = data_utils.read_word_data(args.train, args.dev, args.test, index_dict, word_vectors, args.max_sent_len)
+    (X_train_word, y_train), (X_dev_word, y_dev), (X_test_word, y_test), word_vectors, index_dict, train_lengths, dev_lengths, test_lengths = data_utils.read_word_data(args.train, args.dev, args.test, args.aux, index_dict, word_vectors, args.max_sent_len)
     X_train_word = np.asarray(X_train_word)
     X_dev_word = np.asarray(X_dev_word)
     X_test_word = np.asarray(X_test_word)
@@ -410,7 +410,7 @@ if __name__ == '__main__':
 
         return weighted_binary_crossentropy
 
-    weighted_binary_crossentropy = create_weighted_binary_crossentropy(0.11, 0.89)
+    weighted_binary_crossentropy = create_weighted_binary_crossentropy(0.5, 0.5)
 
 
     def customAuxLoss(y_true, y_pred):
@@ -420,7 +420,7 @@ if __name__ == '__main__':
                     y_train_class[:,4], y_train_class[:,5], y_train_class[:,6], y_train_class[:,7],
                     y_train_class[:,8], y_train_class[:,9], y_train_class[:,10]]
 
-    model_losses = {'main_output' : customMainLoss, 
+    model_losses = {'main_output' : 'mean_squared_error, 
                     'anger_output' : customAuxLoss,
                     'anticipation_output' : customAuxLoss,
                     'disgust_output' : customAuxLoss,
@@ -437,11 +437,13 @@ if __name__ == '__main__':
     def customMainMetric(y_true, y_pred):
         return K.sum(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), K.abs(y_true - y_pred)))
 
+    def mean_pred(y_true, y_pred):
+        return K.mean(K.abs(y_true - y_pred))
 
     def customAuxMetric(y_true, y_pred):
         return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,-1.0), K.cast(K.equal(y_true, K.round(y_pred)),dtype='float32')))
 
-    model_metrics = {'main_output' : customMainMetric,
+    model_metrics = {'main_output' : mean_pred,
                     'anger_output' : customAuxMetric,
                     'anticipation_output' : customAuxMetric,
                     'disgust_output' : customAuxMetric,
@@ -473,6 +475,7 @@ if __name__ == '__main__':
 
     if args.early_stopping:
         callbacks.append(EarlyStopping(monitor='val_loss', patience=5))
+    import ipdb; ipdb.set_trace()
     model.fit(X_train, model_outputs,
                 validation_data=(X_dev, [y_dev_reg, y_dev_class[:,0], y_dev_class[:,1], y_dev_class[:,2], y_dev_class[:,3],
                     y_dev_class[:,4], y_dev_class[:,5], y_dev_class[:,6], y_dev_class[:,7],
