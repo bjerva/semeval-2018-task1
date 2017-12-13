@@ -199,7 +199,6 @@ def evaluate(model):
     test_preds = np.c_[test_preds[0],test_preds[1],test_preds[2],test_preds[3],test_preds[4],test_preds[5],
                         test_preds[6],test_preds[7],test_preds[8],test_preds[9],test_preds[10],test_preds[11]]
 
-    import ipdb; ipdb.set_trace()
     ev.evaluate([train_preds[:,0][:train_lengths[0]],train_preds[:,0][train_lengths[0]:train_lengths[1]],
                 train_preds[:,0][train_lengths[1]:train_lengths[2]],train_preds[:,0][train_lengths[2]:train_lengths[3]]],
                 [y_train_reg[:train_lengths[0]],y_train_reg[train_lengths[0]:train_lengths[1]],
@@ -311,7 +310,6 @@ if __name__ == '__main__':
     #y_aux_class = np.empty([0, 11])
     
     (X_train_word, y_train), (X_dev_word, y_dev), (X_test_word, y_test), word_vectors, index_dict, train_lengths, dev_lengths, test_lengths = data_utils.read_word_data(args.train, args.dev, args.test, index_dict, word_vectors, args.max_sent_len)
-
     X_train_word = np.asarray(X_train_word)
     X_dev_word = np.asarray(X_dev_word)
     X_test_word = np.asarray(X_test_word)
@@ -460,7 +458,7 @@ if __name__ == '__main__':
 
     kf = KFold(n_splits=2, shuffle=True)
 
-    adam = optimizers.adam(lr=0.001)
+    adam = optimizers.adam(lr=0.01)
     
     model.compile(optimizer=adam,
         loss=model_losses,
@@ -471,11 +469,10 @@ if __name__ == '__main__':
     #plot_model(model, to_file='model.png')
 
     if __debug__: print('Fitting...')
-    callbacks = [TensorBoard()]
+    callbacks = [TensorBoard(log_dir='./logs/')]
 
     if args.early_stopping:
         callbacks.append(EarlyStopping(monitor='val_loss', patience=5))
-    import ipdb; ipdb.set_trace()
     model.fit(X_train, model_outputs,
                 validation_data=(X_dev, [y_dev_reg, y_dev_class[:,0], y_dev_class[:,1], y_dev_class[:,2], y_dev_class[:,3],
                     y_dev_class[:,4], y_dev_class[:,5], y_dev_class[:,6], y_dev_class[:,7],
