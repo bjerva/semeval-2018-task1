@@ -14,7 +14,7 @@ random.seed(1337)
 np.random.seed(1337)  # Freeze seeds for reproducibility
 
 # Keras
-from keras.models import Model
+from keras.models import Model, load_model
 from keras.layers.embeddings import Embedding
 from keras.layers import LSTM, GRU, Input, add, concatenate, BatchNormalization
 from keras.layers.wrappers import TimeDistributed
@@ -61,7 +61,7 @@ def build_model():
         prev_x = x
         for rnet_idx in range(args.resnet):
             if args.bn:
-                x = BatchNormalization(mode=bn_mode)(x)
+                x = BatchNormalization()(x)
             x = Activation('relu')(x)
             if args.dropout:
                 x = Dropout(args.dropout)(x)
@@ -69,7 +69,7 @@ def build_model():
             x = Convolution1D(args.char_embedding_dim, 8, activation='relu', padding='same')(x)
 
             if args.bn:
-                x = BatchNormalization(mode=bn_mode)(x)
+                x = BatchNormalization()(x)
             x = Activation('relu')(x)
             if args.dropout:
                 x = Dropout(args.dropout)(x)
@@ -81,7 +81,7 @@ def build_model():
             prev_x = x
 
         if args.bn:
-            x = BatchNormalization(mode=bn_mode)(x)
+            x = BatchNormalization()(x)
 
         x = Activation('linear')(x)
 
@@ -102,7 +102,7 @@ def build_model():
 
         word_x = concatenate([l, r])
         if args.bn:
-            word_x = BatchNormalization(mode=bn_mode)(word_x)
+            word_x = BatchNormalization()(word_x)
 
         if args.dropout:
             word_x = Dropout(args.dropout)(word_x)
@@ -111,7 +111,7 @@ def build_model():
         embedding = char_embedding
 
         if args.bn:
-            embedding = BatchNormalization(mode=bn_mode)(embedding)
+            embedding = BatchNormalization()(embedding)
 
         if args.rnn:
             # Bidirectional GRU
@@ -123,7 +123,7 @@ def build_model():
 
             x = concatenate([l, r])
             if args.bn:
-                x = BatchNormalization(mode=bn_mode)(x)
+                x = BatchNormalization()(x)
         else:
 
             x = Convolution1D(args.char_embedding_dim, 8, activation='relu', border_mode='same')(embedding)
@@ -143,8 +143,6 @@ def build_model():
     elif args.words:
         x = word_x
 
-    x = Dense(args.char_embedding_dim+args.word_embedding_dim, activation='relu')(x)
-
     # Output layer
     #aux_mask
     anger_output = Dense(1, activation='sigmoid', name='anger_output')(x)
@@ -160,7 +158,7 @@ def build_model():
     trust_output = Dense(1, activation='sigmoid', name='trust_output')(x)
     #pre_main = concatenate([x, aux_output])
     #main_mask
-    main_output = Dense(1, activation='linear', name='main_output')(x)
+    main_output = Dense(1, name='main_output')(x)
 
     if args.chars and args.words:
         model_input = [word_input, char_input]
@@ -184,12 +182,12 @@ def evaluate(model):
     train_preds = model.predict(X_train, batch_size=args.bsize, verbose=1)
     dev_preds = model.predict(X_dev, batch_size=args.bsize, verbose=1)
     test_preds = model.predict(X_test, batch_size=args.bsize, verbose=1)
-    
+    import ipdb; ipdb.set_trace()
     for i in range(11):
         train_preds[i+1] = np.round(train_preds[i+1])
         dev_preds[i+1] = np.round(dev_preds[i+1])
         test_preds[i+1] = np.round(test_preds[i+1])
-
+        
     train_preds = np.c_[train_preds[0],train_preds[1],train_preds[2],train_preds[3],train_preds[4],train_preds[5],
                         train_preds[6],train_preds[7],train_preds[8],train_preds[9],train_preds[10],train_preds[11]]
 
@@ -198,7 +196,7 @@ def evaluate(model):
 
     test_preds = np.c_[test_preds[0],test_preds[1],test_preds[2],test_preds[3],test_preds[4],test_preds[5],
                         test_preds[6],test_preds[7],test_preds[8],test_preds[9],test_preds[10],test_preds[11]]
-
+    import ipdb; ipdb.set_trace()
     ev.evaluate([train_preds[:,0][:train_lengths[0]],train_preds[:,0][train_lengths[0]:train_lengths[1]],
                 train_preds[:,0][train_lengths[1]:train_lengths[2]],train_preds[:,0][train_lengths[2]:train_lengths[3]]],
                 [y_train_reg[:train_lengths[0]],y_train_reg[train_lengths[0]:train_lengths[1]],
@@ -222,35 +220,6 @@ def evaluate(model):
 
                 test_preds[:,1:],
                 y_test_class)
-
-
-def calculate_accuracy(prediction, gold_reg, gold_class):
-    '''
-    TODO: Document
-    '''
-    corr_list = np.zeros(11)
-    err_list = np.zeros(11)
-
-    diff = 0
-    for i, pred_reg in enumerate(prediction[0]):
-        diff += abs(gold_reg[i] - pred_reg)
-    
-    for i, prob_class in enumerate(prediction[1]):
-        pred_class = np.zeros(11)
-        pred_class[prob_class > 0.5] = 1
-        for j, pred in enumerate(pred_class):
-            if pred == gold_class[i][j]:
-                corr_list[j] += 1
-            else:
-                err_list[j] += 1
-        
-    
-    reg_accuracy = pearsonr(np.asarray(prediction[0]), np.reshape(gold_reg, (len(gold_reg),1)))
-    print('Regression accuracy:', reg_accuracy)
-    class_accuracy = np.sum(corr_list)/(np.sum(corr_list)+np.sum(err_list))
-    print('Classification accuracy', class_accuracy)
-
-    return prediction, reg_accuracy
 
 
 def save_outputs(tags, X_words, fname):
@@ -385,10 +354,9 @@ if __name__ == '__main__':
         X_test = X_test_word
     
     MASK = tf.convert_to_tensor([-1.0])
-    CLASS_MASK = tf.convert_to_tensor([-1.0])
 
     def customMainLoss(y_true, y_pred):
-        return K.sum(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), K.square(y_true - y_pred)))
+        return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), K.square(y_true - y_pred)))
 
 
     def create_weighted_binary_crossentropy(zero_weight, one_weight):
@@ -410,8 +378,7 @@ if __name__ == '__main__':
 
         return weighted_binary_crossentropy
 
-    weighted_binary_crossentropy = create_weighted_binary_crossentropy(0.5, 0.5)
-
+    weighted_binary_crossentropy = create_weighted_binary_crossentropy(0.09, 0.91)
 
     def customAuxLoss(y_true, y_pred):
         return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), weighted_binary_crossentropy(y_true, y_pred)),axis=1)
@@ -420,7 +387,7 @@ if __name__ == '__main__':
                     y_train_class[:,4], y_train_class[:,5], y_train_class[:,6], y_train_class[:,7],
                     y_train_class[:,8], y_train_class[:,9], y_train_class[:,10]]
 
-    model_losses = {'main_output' : 'mean_squared_error, 
+    model_losses = {'main_output' : 'mean_squared_error',
                     'anger_output' : customAuxLoss,
                     'anticipation_output' : customAuxLoss,
                     'disgust_output' : customAuxLoss,
@@ -456,13 +423,18 @@ if __name__ == '__main__':
                     'surprise_output' : customAuxMetric,
                     'trust_output' : customAuxMetric} #, 'categorical_crossentropy'
 
-    model = build_model()
+    if args.reuse:
+        model = load_model(args.reuse, custom_objects={'customAuxLoss': customAuxLoss, 'mean_pred': mean_pred, 'customAuxMetric' : customAuxMetric})
+        evaluate(model)
+        quit()
+    else:
+        model = build_model()
 
     kf = KFold(n_splits=2, shuffle=True)
 
-    adam = optimizers.adam(lr=0.01)
+    sgd = optimizers.SGD(lr=1, decay=1e-5, momentum=0.9, nesterov=True, clipnorm=1)
     
-    model.compile(optimizer=adam,
+    model.compile(optimizer=sgd,
         loss=model_losses,
         loss_weights=model_loss_weights,
         metrics=model_metrics)
@@ -471,7 +443,7 @@ if __name__ == '__main__':
     #plot_model(model, to_file='model.png')
 
     if __debug__: print('Fitting...')
-    callbacks = [TensorBoard(log_dir='./logs/')]
+    callbacks = [TensorBoard(log_dir='./logs/2ndovernite')]
 
     if args.early_stopping:
         callbacks.append(EarlyStopping(monitor='val_loss', patience=5))
@@ -491,6 +463,6 @@ if __name__ == '__main__':
         print('Evaluating...')
 
     evaluate(model)
-    model.save("{0}.h5".format(experiment_tag))
+    model.save("overnite{0}.h5".format(experiment_tag))
 
     print('Completed: {0}'.format(experiment_tag))

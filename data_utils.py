@@ -116,9 +116,8 @@ def read_word_data(trainfiles, devfiles, testfiles, aux, word_to_id, word_vector
         word_to_id = defaultdict(lambda: len(word_to_id))
     filtered_word_to_id = defaultdict(lambda: len(filtered_word_to_id))
 
-    for auxfile in aux:
-        (_, _, _, _, _, _, y_dict) = utils.load_word_data(auxfile, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len, is_training=True)
-        import ipdb; ipdb.set_trace()
+    for auxfiles in aux:
+        (_, _, _, _, _, _, y_dict) = utils.load_word_data(auxfiles, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len, is_training=True)
 
     for trainfile in trainfiles:
         (X_train_ids, y_train_ids, word_to_id, filtered_word_to_id, tag_to_id, length, y_dict) = utils.load_word_data(trainfile, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len, y_dict=y_dict, is_training=True)
@@ -131,7 +130,7 @@ def read_word_data(trainfiles, devfiles, testfiles, aux, word_to_id, word_vector
 
     prev = 0
     for devfile in devfiles:
-        (X_dev_ids, y_dev_ids,_,_,_, length, _) = utils.load_word_data(devfile, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len)
+        (X_dev_ids, y_dev_ids,_,_,_, length, _) = utils.load_word_data(devfile, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len, y_dict=y_dict)
         X_dev_temp, y_dev_temp, _ = preprocess_words(X_dev_ids, y_dev_ids, word_to_id, tag_to_id, word_vectors, max_sent_len)
 
         dev_lengths.append(length + prev)

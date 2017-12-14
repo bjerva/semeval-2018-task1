@@ -103,26 +103,17 @@ def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_l
             #if args.shorten_sents and len(curr_X) >= max_sent_len-2:
             X.append(curr_X)
             
-            if is_training:
-                if len(labels) <= 2:
-                    floats = [float(labels[1])]
-                    try:
-                        floats.extend(y_dict[sent_id])
-                    except KeyError:
-                        print(sent_id)
-                        floats.extend([-1.0]*11)
-                    y.append(floats)
-                else:
-                    floats = [float(x) for x in labels]
-                    y_dict[sent_id] = floats 
-            else:
-                if len(labels) <= 2:
-                    labels = labels[1:]
-                    labels.extend([-1.0]*11)
-                elif len(labels) == 11:
-                    labels.insert(0, -1.0)
-                floats = [float(x) for x in labels]
+            if len(labels) <= 2:
+                floats = [float(labels[1])]
+                try:
+                    floats.extend(y_dict[sent_id])
+                except KeyError:
+                    print(sent_id)
+                    floats.extend([-1.0]*11)
                 y.append(floats)
+            else:
+                floats = [float(x) for x in labels]
+                y_dict[sent_id] = floats 
             curr_X = []#word_to_id[SENT_CONT]]
                 #curr_y = []#tag_to_id[SENT_CONT]]
     ## get some stats on dataset

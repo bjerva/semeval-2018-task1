@@ -47,6 +47,7 @@ parser.add_argument('--bn', help='use batch normalisation', action='store_true')
 parser.add_argument('--dropout', help='use dropout', type=float, default=0.0)
 parser.add_argument('--memsave', help='attempt to save memory', action='store_true')
 parser.add_argument('--verbose', help='keras verbosity', type=int, default=1)
+parser.add_argument('--reuse', help='model path', type=str)
 
 args = parser.parse_args()
 
