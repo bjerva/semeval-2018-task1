@@ -39,29 +39,8 @@ def load_character_data(fname, char_to_id, max_sent_len, max_word_len=32, is_aux
                 char_ids = [char_to_id[byte] for char in sentence for byte in map(ord, char.encode('utf8'))]
             else:
                 char_ids = [char_to_id[char] for char in sentence]
-
             X.append(char_ids)
     return X
-    # sent_lens = [len(s) for s in X]
-    # max_sent_len_data = max(sent_lens)
-    # percentile = int(np.percentile(sent_lens, 90))
-    #
-    # # cutoff for max_sent_len
-    # discarded_tokens = 0
-    # used_tokens = 0
-    # cut_X = []
-    # for sent in X:
-    #     discarded_tokens += max(len(sent) - max_word_len, 0)
-    #     used_tokens += len(sent[:max_word_len])
-    #     cut_X.append(sent[:max_word_len])
-    #
-    # if __debug__:
-    #     print('max len in dataset: {0}\t90-percentile: {2}\tmax len used: {1}'.format(max_sent_len_data, max_word_len, percentile))
-    #     print('n discarded toks:\t{0}'.format(discarded_tokens))
-    #     print('n used toks:\t\t{0}'.format(used_tokens))
-    #     print('prop used toks:\t\t{0}'.format(used_tokens / float(used_tokens+discarded_tokens)))
-    #
-    # return cut_X
 
 def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len, y_dict={}, is_training=False):
     """
@@ -71,58 +50,45 @@ def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_l
     print("reading ",fname)
     X, y = [], []
     length = 0
+    reg_no_class = 0
     with open(fname, 'r', encoding='utf-8') as in_f:
-        next(in_f) #Skipper first line
+        next(in_f)
         curr_X, curr_y = [], []
         for line in in_f:
             length +=1
-            #line = line.strip()
-            #if len(line) == 0: continue
             content = line.strip().split('\t')
             sent_id, sentence = content[0:2]
             labels = content[2:]
-            for token in sentence.split(): # TODO: Real tokenisation
+            for token in sentence.split():
                 if not args.words:
                     curr_X.append(word_to_id[UNKNOWN])
-                # Some preprocessing
                 if re.match('^[0-9\.\,-]+$', token):
                     curr_X.append(word_to_id[NUMBER])
                 else:
-                    #token = ''.join(ch for ch in token if ch not in exclude)
-                    if token.lower() in word_to_id:# and args.mwe and ('~' in token or '-' in token):
+                    if token.lower() in word_to_id:
                         curr_X.append(word_to_id[token.lower()])
-                        #curr_X.append(attempt_reconstruction(token, word_to_id))
                     elif args.ignore_embeddings:
                         curr_X.append(word_to_id[token.lower()])
                     else:
-                        #print("unk*****", token) #if token not in embeddings it's UNK (or mwu if option off)
                         curr_X.append(word_to_id[UNKNOWN])
-
-            #curr_y.append(tag_to_id[tag])
-
-            #if args.shorten_sents and len(curr_X) >= max_sent_len-2:
             X.append(curr_X)
-            
             if len(labels) <= 2:
                 floats = [float(labels[1])]
                 try:
                     floats.extend(y_dict[sent_id])
                 except KeyError:
-                    print(sent_id)
                     floats.extend([-1.0]*11)
+                    reg_no_class += 1
                 y.append(floats)
             else:
                 floats = [float(x) for x in labels]
                 y_dict[sent_id] = floats 
-            curr_X = []#word_to_id[SENT_CONT]]
-                #curr_y = []#tag_to_id[SENT_CONT]]
-    ## get some stats on dataset
+            curr_X = []
+
     sent_lens = [len(s) for s in X]
     max_sent_len_data = max(sent_lens)
     percentile = int(np.percentile(sent_lens, 90))
-    ## max sentence cutoff
-    # Two options: either discard sentences (as in earlier code), or use all up to max_sent_len (
-    # Leave room for padding
+
     old_len = len(X)
     discarded_tokens = 0
     total_toks = 0
@@ -142,23 +108,14 @@ def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_l
                     filtered_sent.append(filtered_word_to_id[id_to_word[word_id]])
             word_filtered.append(filtered_sent)
         word_to_id = filtered_word_to_id
-        #import ipdb; ipdb.set_trace() #FUCK YOUU
         X = word_filtered
 
     X = [s[:max_sent_len-2] for s in X]
-    #y = [s[:max_sent_len-2] for s in y]
 
     if __debug__:
         print('max len in dataset: {0}\t90-percentile: {2}\tmax len used: {1}'.format(max_sent_len_data, max_sent_len, percentile))
         print('n discarded sents: {0}'.format(old_len - len(X)))
         print('n discarded toks: {0}'.format(discarded_tokens))
-
-    if args.bookkeeping:
-        dsetname = os.path.basename(fname).rstrip('.conllu')
-        save_ids(word_to_id, tag_to_id, dsetname)
+        print('amount of tweets with no class labels: {0}\n'.format(reg_no_class))
 
     return X, y, word_to_id, filtered_word_to_id, tag_to_id, length, y_dict
-
-def save_ids(word_to_id, tag_to_id, fname):
-    write_mapping(word_to_id, experiment_dir+'/{0}_word2id.txt'.format(fname))
-    write_mapping(tag_to_id, experiment_dir+'/{0}_tag2id.txt'.format(fname))

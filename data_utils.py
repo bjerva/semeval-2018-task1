@@ -12,47 +12,6 @@ import pickle
 np.random.seed(1337)
 random.seed(1337)
 
-def write_features_hdf5(train, valid, test):
-    f = h5py.File(args.hdf5, "w")
-
-    train_grp = f.create_group("train")
-    train_x = train_grp.create_dataset("train_x", train[0].shape, dtype='f', compression="gzip", compression_opts=9)
-    train_y = train_grp.create_dataset("train_y", train[1].shape, dtype='i', compression="gzip", compression_opts=9)
-
-    valid_grp = f.create_group("valid")
-    valid_x = valid_grp.create_dataset("valid_x", valid[0].shape, dtype='f', compression="gzip", compression_opts=9)
-    valid_y = valid_grp.create_dataset("valid_y", valid[1].shape, dtype='i', compression="gzip", compression_opts=9)
-
-    test_grp = f.create_group("test")
-    test_x = test_grp.create_dataset("test_x", test[0].shape, dtype='f', compression="gzip", compression_opts=9)
-    test_y = test_grp.create_dataset("test_y", test[1].shape, dtype='i', compression="gzip", compression_opts=9)
-
-    train_x.write_direct(np.ascontiguousarray(train[0], dtype=train[0].dtype))
-    train_y.write_direct(np.ascontiguousarray(train[1], dtype=train[1].dtype))
-    valid_x.write_direct(np.ascontiguousarray(valid[0], dtype=valid[0].dtype))
-    valid_y.write_direct(np.ascontiguousarray(valid[1], dtype=valid[1].dtype))
-    test_x.write_direct(np.ascontiguousarray(test[0], dtype=test[0].dtype))
-    test_y.write_direct(np.ascontiguousarray(test[1], dtype=test[1].dtype))
-
-    f.close()
-
-def load_hdf5():
-    f = h5py.File(args.hdf5, 'r')
-    sets = ('train', 'valid', 'test')
-    parts = ('x', 'y')
-
-    hdf5s = [f['{0}/{0}_{1}'.format(i, j)] for i in sets for j in parts]
-
-    np_arrays = [np.zeros(h5.shape, h5.dtype) for h5 in hdf5s]
-    for idx, h5 in enumerate(hdf5s):
-        h5.read_direct(np_arrays[idx])
-    f.close()
-
-    return ((np_arrays[0], np_arrays[1]),
-            (np_arrays[2], np_arrays[3]),
-            (np_arrays[4], np_arrays[5]))
-
-
 def preprocess_words(X_ids, Y_ids, word_to_id, tag_to_id, word_vectors, max_sent_len, is_training=False):
     if __debug__: print('Reshaping data...')
 
@@ -63,27 +22,11 @@ def preprocess_words(X_ids, Y_ids, word_to_id, tag_to_id, word_vectors, max_sent
     for idx, sentence in enumerate(X_ids):
         curr_X = np.zeros((len(sentence)+2, ), dtype=np.int32) # +2 for sent_start, sent_end
         curr_X[0] = word_to_id[SENT_START]
-        #XXX: Some bug here with words
         for idy, word_id in enumerate(sentence):
-            if is_training and args.mwe and type(word_id) == list:
-                vectors = np.asarray([word_vectors[id_to_word[i]] for i in word_id[:-1]])
-                compositional_rep = np.sum(vectors, axis=0, dtype=np.float32)
-                word_id = word_id[-1]
-                word_vectors[id_to_word[word_id]] = compositional_rep
-
             curr_X[idy+1] = word_id # +1 for offset
         curr_X[-1] = word_to_id[SENT_END]
         X.append(curr_X)
     y = np.zeros((len(Y_ids), nb_classes), dtype=np.int32)#[]
-    '''
-    for idx, tag_id in enumerate(Y_ids):
-        #curr_Y = np.zeros((len(sentence)+2, nb_classes), dtype=np.int32) # +2 for sent_start, sent_end
-        #curr_Y[0, tag_to_id[SENT_START]] = 1
-        #for idy, tag_id in enumerate(sentence):
-        y[idx, tag_id] = 1 # +1 for offset
-        #curr_Y[-1, tag_to_id[SENT_END]] = 1
-        #y.append(curr_Y)
-    '''
     y = Y_ids
     X = sequence.pad_sequences(X, maxlen=max_sent_len, dtype=np.int32, value=word_to_id[SENT_PAD])
 
