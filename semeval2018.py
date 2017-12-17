@@ -37,7 +37,6 @@ from collections import defaultdict
 # Implementation-specific
 import utils
 import data_utils
-from analysis import write_confusion_matrix, prepare_error_analysis
 from config import *
 
 sys.path.append('../')
@@ -193,7 +192,6 @@ def evaluate(model):
 
     test_preds = np.c_[test_preds[0],test_preds[1],test_preds[2],test_preds[3],test_preds[4],test_preds[5],
                         test_preds[6],test_preds[7],test_preds[8],test_preds[9],test_preds[10],test_preds[11]]
-    import ipdb; ipdb.set_trace()
     save_outputs(y_train_reg, y_train_class, train_preds)
     ev.evaluate([train_preds[:,0][:train_lengths[0]],train_preds[:,0][train_lengths[0]:train_lengths[1]],
                 train_preds[:,0][train_lengths[1]:train_lengths[2]],train_preds[:,0][train_lengths[2]:train_lengths[3]]],
@@ -220,12 +218,23 @@ def evaluate(model):
                 y_test_class)
 
 
+def pred_statistics(fname):
+    data = np.loadtxt(fname)
+
+    anger_var = (np.var(data[:train_lengths[0],0]), np.var(data[:train_lengths[0],12]))
+    anger_mean = (np.mean(data[:train_lengths[0],0]), np.mean(data[:train_lengths[0],12]))
+    anger_sqrl = (data[:train_lengths[0],0] - data[:train_lengths[0],12])**2
+    fear_var = (np.var(data[train_lengths[0]:train_lengths[1],0]), np.var(data[train_lengths[0]:train_lengths[1],12]))
+    joy_var = (np.var(data[train_lengths[1]:train_lengths[2],0]), np.var(data[train_lengths[1]:train_lengths[2],12]))
+    sadness_var = (np.var(data[train_lengths[2]:train_lengths[3],0]), np.var(data[train_lengths[2]:train_lengths[3],12]))
+    print('Gold anger variance: {:.6f} \nPred anger variance: {:.6f}'.format(anger_var[0], anger_var[1]))
+    print('Gold anger mean: {:.6f} \nPred anger mean: {:.6f}'.format(anger_mean[0], anger_mean[1]))
+    #print(np.where(anger_sqrl > np.mean(anger_sqrl)))
+
 def save_outputs(gold_reg, gold_class, preds):
-    with open('preds.txt', mode='w') as f:
-        for i in range(preds.shape[0]):
-            gold = np.array2string(np.insert(gold_class[i],0,gold_reg[i])).replace('\n', '')
-            pred = np.array2string(preds[i]).replace('\n','')
-            f.write('{0}\t{1}\n'.format(gold,pred))
+    gold = np.c_[gold_reg, gold_class, preds]
+    np.savetxt('preds.txt', gold, fmt='%.3f %i %i %i %i %i %i %i %i %i %i %i %.3f %i %i %i %i %i %i %i %i %i %i %i')
+    
         
 
 def save_run_information():
@@ -463,6 +472,7 @@ if __name__ == '__main__':
         print('Evaluating...')
 
     evaluate(model)
+    pred_statistics('preds.txt')
     model.save("models/{0}.h5".format(experiment_tag))
 
     print('Completed: {0}'.format(experiment_tag))
