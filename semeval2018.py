@@ -158,7 +158,7 @@ def build_model():
     trust_output = Dense(1, activation='sigmoid', name='trust_output')(x)
     #pre_main = concatenate([x, aux_output])
     #main_mask
-    main_output = Dense(1, name='main_output')(x)
+    main_output = Dense(1, activation='linear', name='main_output')(x)
 
     if args.chars and args.words:
         model_input = [word_input, char_input]
@@ -182,7 +182,7 @@ def evaluate(model):
     train_preds = model.predict(X_train, batch_size=args.bsize, verbose=1)
     dev_preds = model.predict(X_dev, batch_size=args.bsize, verbose=1)
     test_preds = model.predict(X_test, batch_size=args.bsize, verbose=1)
-    import ipdb; ipdb.set_trace()
+
     for i in range(11):
         train_preds[i+1] = np.round(train_preds[i+1])
         dev_preds[i+1] = np.round(dev_preds[i+1])
@@ -378,7 +378,7 @@ if __name__ == '__main__':
 
         return weighted_binary_crossentropy
 
-    weighted_binary_crossentropy = create_weighted_binary_crossentropy(0.09, 0.91)
+    weighted_binary_crossentropy = create_weighted_binary_crossentropy(0.2, 0.8)
 
     def customAuxLoss(y_true, y_pred):
         return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), weighted_binary_crossentropy(y_true, y_pred)),axis=1)
@@ -432,9 +432,9 @@ if __name__ == '__main__':
 
     kf = KFold(n_splits=2, shuffle=True)
 
-    sgd = optimizers.SGD(lr=1, decay=1e-5, momentum=0.9, nesterov=True, clipnorm=1)
+    adam = optimizers.Adam(lr=0.001, decay=1e-6, clipnorm=1)
     
-    model.compile(optimizer=sgd,
+    model.compile(optimizer=adam,
         loss=model_losses,
         loss_weights=model_loss_weights,
         metrics=model_metrics)
@@ -447,7 +447,7 @@ if __name__ == '__main__':
 
     if args.early_stopping:
         callbacks.append(EarlyStopping(monitor='val_loss', patience=5))
-    import ipdb; ipdb.set_trace()
+
     model.fit(X_train, model_outputs,
                 validation_data=(X_dev, [y_dev_reg, y_dev_class[:,0], y_dev_class[:,1], y_dev_class[:,2], y_dev_class[:,3],
                     y_dev_class[:,4], y_dev_class[:,5], y_dev_class[:,6], y_dev_class[:,7],
