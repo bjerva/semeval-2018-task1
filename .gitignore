@@ -104,3 +104,4 @@ embeddings.txt
 events.*
 *.h5
 preds.txt
+trained_embeddings.txt
