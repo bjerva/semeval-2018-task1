@@ -91,9 +91,9 @@ def build_model():
     if args.words:
         word_input = Input(shape=(args.max_sent_len, ), dtype='int32', name='word_input')
         if not args.ignore_embeddings:
-            word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len, weights=[embedding_weights], trainable=(not args.freeze))(word_input)
+            word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len, weights=[embedding_weights], trainable=(not args.freeze), name='word_embedding')(word_input)
         else:
-            word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len)(word_input)
+            word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len, name='word_embedding')(word_input)
 
         l = GRU(units=int(args.rnn_dim), return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(word_embedding)
         #l = GRU(units=int(args.rnn_dim)/2, return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(l)
@@ -421,7 +421,7 @@ if __name__ == '__main__':
         plot_model(model, to_file='model.png')
 
     if __debug__: print('Fitting...')
-    callbacks = [TensorBoard(log_dir='./logs/2ndovernite')]
+    callbacks = [TensorBoard(log_dir='./logs/2ndovernite', embeddings_layer_names='word_embedding')]
 
     if args.early_stopping:
         callbacks.append(EarlyStopping(monitor='val_loss', patience=args.early_stopping))
