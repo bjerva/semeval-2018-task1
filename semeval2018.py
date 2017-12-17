@@ -197,6 +197,7 @@ def evaluate(model):
     test_preds = np.c_[test_preds[0],test_preds[1],test_preds[2],test_preds[3],test_preds[4],test_preds[5],
                         test_preds[6],test_preds[7],test_preds[8],test_preds[9],test_preds[10],test_preds[11]]
     import ipdb; ipdb.set_trace()
+    save_outputs(y_train_reg, y_train_class, train_preds)
     ev.evaluate([train_preds[:,0][:train_lengths[0]],train_preds[:,0][train_lengths[0]:train_lengths[1]],
                 train_preds[:,0][train_lengths[1]:train_lengths[2]],train_preds[:,0][train_lengths[2]:train_lengths[3]]],
                 [y_train_reg[:train_lengths[0]],y_train_reg[train_lengths[0]:train_lengths[1]],
@@ -222,13 +223,13 @@ def evaluate(model):
                 y_test_class)
 
 
-def save_outputs(tags, X_words, fname):
-    with open(experiment_dir+'/{0}_tag2id.txt'.format(fname), 'r') as in_f:
-        id_to_tag = dict((line.strip().split()[::-1] for line in in_f))
-
-    with open(experiment_dir+'/{0}_outputs.txt'.format(fname), 'w') as out_f:
-        for sentence in tags:
-            out_f.write(u'{0}\n'.format(id_to_tag[str(sentence[2])]))
+def save_outputs(gold_reg, gold_class, preds):
+    with open('preds.txt', mode='w') as f:
+        for i in range(preds.shape[0]):
+            gold = np.array2string(np.insert(gold_class[i],0,gold_reg[i])).replace('\n', '')
+            pred = np.array2string(preds[i]).replace('\n','')
+            f.write('{0}\t{1}\n'.format(gold,pred))
+        
 
 def save_run_information():
     '''
@@ -463,6 +464,6 @@ if __name__ == '__main__':
         print('Evaluating...')
 
     evaluate(model)
-    model.save("overnite{0}.h5".format(experiment_tag))
+    model.save("models/{0}.h5".format(experiment_tag))
 
     print('Completed: {0}'.format(experiment_tag))
