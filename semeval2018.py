@@ -143,8 +143,6 @@ def build_model():
     elif args.words:
         x = word_x
 
-    # Output layer
-    #aux_mask
     anger_output = Dense(1, activation='sigmoid', name='anger_output')(x)
     anticipation_output = Dense(1, activation='sigmoid', name='anticipation_output')(x)
     disgust_output = Dense(1, activation='sigmoid', name='disgust_output')(x)
@@ -156,8 +154,7 @@ def build_model():
     sadness_output = Dense(1, activation='sigmoid', name='sadness_output')(x)
     surprise_output = Dense(1, activation='sigmoid', name='surprise_output')(x)
     trust_output = Dense(1, activation='sigmoid', name='trust_output')(x)
-    #pre_main = concatenate([x, aux_output])
-    #main_mask
+
     main_output = Dense(1, activation='linear', name='main_output')(x)
 
     if args.chars and args.words:
@@ -296,28 +293,19 @@ if __name__ == '__main__':
     y_test_reg = y_test[:,0]
     y_test_class = y_test[:,1:]
 
-    #nb_classes = 1
-    #print(nb_classes)
-    #print(len(y_train[0]))
-
     if args.words:
         if args.ignore_embeddings or not args.embeddings:
             vocab_size = 1 + max(np.max(X_train_word), max(np.max(X_dev_word), np.max(X_test_word)))
         else:
             vocab_size = len(index_dict)
-            #print(vocab_size)
+
             embedding_weights = np.zeros((vocab_size, word_embedding_dim))
             for word, index in index_dict.items():
                 if __debug__ and word not in word_vectors:
                     print('word not in vectors', word)
                     cntr += 1
                     continue
-                try:
-                    embedding_weights[index,:] = word_vectors[word]
-                    #print(word_vectors[word])
-                except ValueError: #tror ikke det er godt det her
-                    embedding_weights[index,:] = np.zeros(word_embedding_dim)
-                    #print(word + " " + str(index_dict[word]))
+                embedding_weights[index,:] = word_vectors[word]
 
     if args.chars:
         if __debug__:
@@ -356,16 +344,9 @@ if __name__ == '__main__':
     
     MASK = tf.convert_to_tensor([-1.0])
 
-    def customMainLoss(y_true, y_pred):
-        return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), K.square(y_true - y_pred)))
-
-
     def create_weighted_binary_crossentropy(zero_weight, one_weight):
 
         def weighted_binary_crossentropy(y_true, y_pred):
-
-            # Original binary crossentropy (see losses.py):
-            # K.mean(K.binary_crossentropy(y_true, y_pred), axis=-1)
 
             # Calculate the binary crossentropy
             b_ce = K.binary_crossentropy(y_true, y_pred)
@@ -399,11 +380,8 @@ if __name__ == '__main__':
                     'pessimism_output' : customAuxLoss,
                     'sadness_output' : customAuxLoss,
                     'surprise_output' : customAuxLoss,
-                    'trust_output' : customAuxLoss} #, 'categorical_crossentropy'
+                    'trust_output' : customAuxLoss}
     model_loss_weights = [0.45, 0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05]
-
-    def customMainMetric(y_true, y_pred):
-        return K.sum(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), K.abs(y_true - y_pred)))
 
     def mean_pred(y_true, y_pred):
         return K.mean(K.abs(y_true - y_pred))
@@ -422,7 +400,7 @@ if __name__ == '__main__':
                     'pessimism_output' : customAuxMetric,
                     'sadness_output' : customAuxMetric,
                     'surprise_output' : customAuxMetric,
-                    'trust_output' : customAuxMetric} #, 'categorical_crossentropy'
+                    'trust_output' : customAuxMetric} 
 
     if args.reuse:
         model = load_model(args.reuse, custom_objects={'customAuxLoss': customAuxLoss, 'mean_pred': mean_pred, 'customAuxMetric' : customAuxMetric})
@@ -430,8 +408,6 @@ if __name__ == '__main__':
         quit()
     else:
         model = build_model()
-
-    kf = KFold(n_splits=2, shuffle=True)
 
     adam = optimizers.Adam(lr=0.001, decay=1e-6, clipnorm=1)
     
@@ -441,23 +417,46 @@ if __name__ == '__main__':
         metrics=model_metrics)
 
     model.summary()
-    #plot_model(model, to_file='model.png')
+    
+    if args.plot:
+        plot_model(model, to_file='model.png')
 
     if __debug__: print('Fitting...')
     callbacks = [TensorBoard(log_dir='./logs/2ndovernite')]
 
     if args.early_stopping:
-        callbacks.append(EarlyStopping(monitor='val_loss', patience=5))
+        callbacks.append(EarlyStopping(monitor='val_loss', patience=args.early_stopping))
 
-    model.fit(X_train, model_outputs,
-                validation_data=(X_dev, [y_dev_reg, y_dev_class[:,0], y_dev_class[:,1], y_dev_class[:,2], y_dev_class[:,3],
-                    y_dev_class[:,4], y_dev_class[:,5], y_dev_class[:,6], y_dev_class[:,7],
-                    y_dev_class[:,8], y_dev_class[:,9], y_dev_class[:,10]]),
+    if args.kfold:
+        kf = KFold(n_splits=args.kfold, shuffle=True)
+        for train_index, test_index in kf.split(X_train_word):
+            import ipdb; ipdb.set_trace()
+            model.fit([X_train[0][train_index], X_train[1][train_index]], [y_train_reg[train_index], 
+                            y_train_class[:,0][train_index], y_train_class[:,1][train_index], y_train_class[:,2][train_index],
+                            y_train_class[:,3][train_index], y_train_class[:,4][train_index], y_train_class[:,5][train_index], 
+                            y_train_class[:,6][train_index], y_train_class[:,7][train_index], y_train_class[:,8][train_index],
+                            y_train_class[:,9][train_index], y_train_class[:,10][train_index]],
+                        validation_data=([X_train[0][test_index], X_train[1][test_index]], [y_train_reg[test_index], 
+                            y_train_class[:,0][test_index], y_train_class[:,1][test_index], y_train_class[:,2][test_index],
+                            y_train_class[:,3][test_index], y_train_class[:,4][test_index], y_train_class[:,5][test_index], 
+                            y_train_class[:,6][test_index], y_train_class[:,7][test_index], y_train_class[:,8][test_index],
+                            y_train_class[:,9][test_index], y_train_class[:,10][test_index]]),
+                        epochs=args.epochs,
+                        shuffle=True,
+                        batch_size=args.bsize,
+                        callbacks=callbacks,
+                        verbose=args.verbose)
+    else:
+        model.fit(X_train, model_outputs,
+            validation_data=(X_dev, [y_dev_reg, y_dev_class[:,0], y_dev_class[:,1], y_dev_class[:,2], y_dev_class[:,3],
+                y_dev_class[:,4], y_dev_class[:,5], y_dev_class[:,6], y_dev_class[:,7],
+                y_dev_class[:,8], y_dev_class[:,9], y_dev_class[:,10]]),
                 epochs=args.epochs,
                 shuffle=True,
                 batch_size=args.bsize,
                 callbacks=callbacks,
                 verbose=args.verbose)
+
 
     if __debug__:
         print(args)
