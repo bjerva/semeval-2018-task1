@@ -37,6 +37,7 @@ parser.add_argument('--verbose', help='keras verbosity', type=int, default=1)
 parser.add_argument('--reuse', help='model path', type=str)
 parser.add_argument('--plot', help='plot model', action='store_true')
 parser.add_argument('--kfold', help='amount of folds in validation', type=int)
+parser.add_argument('--save-word-weights', help='save the trained word embedding weights', action='store_true')
 
 
 args = parser.parse_args()

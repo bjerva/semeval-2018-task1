@@ -44,6 +44,7 @@ import kode.testkode.eval as ev
 from scipy.stats import pearsonr
 from sklearn.model_selection import KFold
 
+np.set_printoptions(suppress=True)
 
 def build_model():
     '''
@@ -234,37 +235,6 @@ def pred_statistics(fname):
 def save_outputs(gold_reg, gold_class, preds):
     gold = np.c_[gold_reg, gold_class, preds]
     np.savetxt('preds.txt', gold, fmt='%.3f %i %i %i %i %i %i %i %i %i %i %i %.3f %i %i %i %i %i %i %i %i %i %i %i')
-    
-        
-
-def save_run_information():
-    '''
-    FIXME: Several things not implemented.
-    '''
-    try:
-        from keras.utils.visualize_util import plot
-        plot(model, to_file=experiment_dir+'/model.png', show_shapes=True)
-    except:
-        print('Could not save model plot...')
-
-    try:
-        model.save_weights(experiment_dir+'/weights.h5')
-    except ImportError:
-        print('Could not save weights...')
-
-    json_string = model.to_json()
-    with open(experiment_dir+'/architecture.json', 'w') as out_f:
-        out_f.write(json_string)
-
-    try:
-        write_confusion_matrix(y_dev, dev_classes, nb_classes)
-    except:
-        print('Conf matrix not written')
-
-    try:
-        prepare_error_analysis(X_dev, y_dev, dev_classes, vocab_size)
-    except:
-        print('Error analysis not written')
 
 if __name__ == '__main__':
     print("use chars?", args.chars)
@@ -280,10 +250,6 @@ if __name__ == '__main__':
         word_vectors = np.random.standard_normal(size=(args.nwords, args.word_embedding_dim))
 
     if __debug__: print('Loading data...')
-
-    # Word data must be read even if word features aren't used
-
-    #y_aux_class = np.empty([0, 11])
     
     (X_train_word, y_train), (X_dev_word, y_dev), (X_test_word, y_test), word_vectors, index_dict, train_lengths, dev_lengths, test_lengths = data_utils.read_word_data(args.train, args.dev, args.test, args.aux, index_dict, word_vectors, args.max_sent_len)
     X_train_word = np.asarray(X_train_word)
@@ -431,7 +397,7 @@ if __name__ == '__main__':
         plot_model(model, to_file='model.png')
 
     if __debug__: print('Fitting...')
-    callbacks = [TensorBoard(log_dir='./logs/2ndovernite', embeddings_layer_names='word_embedding')]
+    callbacks = [TensorBoard(log_dir='./logs/2ndovernite')]
 
     if args.early_stopping:
         callbacks.append(EarlyStopping(monitor='val_loss', patience=args.early_stopping))
@@ -466,13 +432,31 @@ if __name__ == '__main__':
                 callbacks=callbacks,
                 verbose=args.verbose)
 
+    if args.save_word_weights:
+        print('Saving word embedding weights...')
+        layer = model.get_layer(name='word_embedding').get_weights()
+        words_used = list(index_dict.keys())
+        
+        #word_dictionary = {}
+        #for i, word in enumerate(words_used):
+        #    word_dictionary[word] = layer[0][i]
+        
+        with open('trained_embeddings.txt', 'w') as f:
+            bad_chars = ['[', ']', '\n',]
+            for index, word in enumerate(words_used):
+                weight = np.array2string(layer[0][index], precision=20)
+                for chars in bad_chars:
+                    weight = weight.replace(chars, '')
+                weight = weight.replace('  ', ' ')
+                f.write('{0} {1}\n'.format(word, weight))
 
     if __debug__:
         print(args)
         print('Evaluating...')
-
+    
     evaluate(model)
-    pred_statistics('preds.txt')
-    model.save("models/{0}.h5".format(experiment_tag))
+
+    if args.save:
+        model.save("models/{0}.h5".format(experiment_tag))
 
     print('Completed: {0}'.format(experiment_tag))
