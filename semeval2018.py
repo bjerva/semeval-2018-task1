@@ -378,6 +378,7 @@ if __name__ == '__main__':
                     'trust_output' : customAuxMetric} 
 
     if args.reuse:
+        print('Loading model...')
         model = load_model(args.reuse, custom_objects={'customAuxLoss': customAuxLoss, 'mean_pred': mean_pred, 'customAuxMetric' : customAuxMetric})
         evaluate(model)
         quit()
@@ -432,6 +433,15 @@ if __name__ == '__main__':
                 callbacks=callbacks,
                 verbose=args.verbose)
 
+    if __debug__:
+        print(args)
+        print('Evaluating...')
+    
+    evaluate(model)
+
+    if args.save:
+        model.save("models/{0}.h5".format(experiment_tag))
+
     if args.save_word_weights:
         print('Saving word embedding weights...')
         layer = model.get_layer(name='word_embedding').get_weights()
@@ -450,13 +460,5 @@ if __name__ == '__main__':
                 weight = weight.replace('  ', ' ')
                 f.write('{0} {1}\n'.format(word, weight))
 
-    if __debug__:
-        print(args)
-        print('Evaluating...')
-    
-    evaluate(model)
-
-    if args.save:
-        model.save("models/{0}.h5".format(experiment_tag))
 
     print('Completed: {0}'.format(experiment_tag))
