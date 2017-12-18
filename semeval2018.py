@@ -21,7 +21,7 @@ from keras.layers.wrappers import TimeDistributed
 from keras.layers.core import Dense, Dropout, Activation, Flatten, Reshape, Lambda, Masking
 from keras.layers.convolutional import Convolution1D, MaxPooling1D
 from keras import backend as K
-from keras.callbacks import TensorBoard, EarlyStopping, ModelCheckpoint, ProgbarLogger
+from keras.callbacks import TensorBoard, EarlyStopping, ModelCheckpoint, ProgbarLogger, TerminateOnNaN
 from keras import metrics
 from keras import optimizers
 from keras.utils import plot_model
@@ -381,6 +381,22 @@ if __name__ == '__main__':
         print('Loading model...')
         model = load_model(args.reuse, custom_objects={'customAuxLoss': customAuxLoss, 'mean_pred': mean_pred, 'customAuxMetric' : customAuxMetric})
         evaluate(model)
+
+        if args.plot:
+        plot_model(model, to_file='model.png')
+
+        if args.save_word_weights:
+            print('HUSK AT INDEX DICT IKKE ER DET SAMME SOM DET MODELEN BLEV TRAENET PÅ NOEDVENDIGVIS!')
+            layer = model.get_layer(name='word_embedding').get_weights()
+            words_used = list(index_dict.keys())            
+            with open('trained_embeddings.txt', 'w') as f:
+                bad_chars = ['[', ']', '\n',]
+                for index, word in enumerate(words_used):
+                    weight = np.array2string(layer[0][index], precision=20)
+                    for chars in bad_chars:
+                        weight = weight.replace(chars, '')
+                    weight = weight.replace('  ', ' ')
+                    f.write('{0} {1}\n'.format(word, weight))
         quit()
     else:
         model = build_model()
@@ -398,7 +414,8 @@ if __name__ == '__main__':
         plot_model(model, to_file='model.png')
 
     if __debug__: print('Fitting...')
-    callbacks = [TensorBoard(log_dir='./logs/2ndovernite')]
+    callbacks = [TensorBoard(log_dir='./logs/2ndovernite', write_grads=True, write_images=True, histogram_freq=1),
+                TerminateOnNaN()]
 
     if args.early_stopping:
         callbacks.append(EarlyStopping(monitor='val_loss', patience=args.early_stopping))
