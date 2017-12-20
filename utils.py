@@ -10,6 +10,8 @@ from config import *
 
 from codecs import open
 
+bad_chars = [',', '.', '!', ' ']
+
 def read_word_embeddings(fname):
     word_vec_map = {}
     word_id_map = {}
@@ -60,6 +62,8 @@ def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_l
             sent_id, sentence = content[0:2]
             labels = content[2:]
             for token in sentence.split():
+                for char in bad_chars:
+                    token = token.replace(char, '')
                 if not args.words:
                     curr_X.append(word_to_id[UNKNOWN])
                 if re.match('^[0-9\.\,-]+$', token):
