@@ -38,6 +38,7 @@ parser.add_argument('--reuse', help='model path', type=str)
 parser.add_argument('--plot', help='plot model', action='store_true')
 parser.add_argument('--kfold', help='amount of folds in validation', type=int)
 parser.add_argument('--save-word-weights', help='save the trained word embedding weights', action='store_true')
+parser.add_argument('--bce', help='Weighted BCE', type=float, default=0.3)
 
 
 args = parser.parse_args()

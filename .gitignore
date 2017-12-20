@@ -105,3 +105,6 @@ events.*
 *.h5
 preds.txt
 trained_embeddings.txt
+preds/*
+logs/*
+models/*
