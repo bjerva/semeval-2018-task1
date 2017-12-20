@@ -193,8 +193,14 @@ def evaluate(model):
 
     test_preds = np.c_[test_preds[0],test_preds[1],test_preds[2],test_preds[3],test_preds[4],test_preds[5],
                         test_preds[6],test_preds[7],test_preds[8],test_preds[9],test_preds[10],test_preds[11]]
-    save_outputs(y_train_reg, y_train_class, train_preds)
-    ev.evaluate([train_preds[:,0][:train_lengths[0]],train_preds[:,0][train_lengths[0]:train_lengths[1]],
+    #save_outputs(y_train_reg, y_train_class, train_preds)
+
+    printPredsToFileReg(args.dev[0], './preds/sub/EI-reg_en_anger_pred.txt', dev_preds[:,0][:dev_lengths[0]])
+    printPredsToFileReg(args.dev[1], './preds/sub/EI-reg_en_fear_pred.txt', dev_preds[:,0][dev_lengths[0]:dev_lengths[1]])
+    printPredsToFileReg(args.dev[2], './preds/sub/EI-reg_en_joy_pred.txt', dev_preds[:,0][dev_lengths[1]:dev_lengths[2]])
+    printPredsToFileReg(args.dev[3], './preds/sub/EI-reg_en_sadness_pred.txt', dev_preds[:,0][dev_lengths[2]:dev_lengths[3]])
+
+    helper_string = ev.evaluate([train_preds[:,0][:train_lengths[0]],train_preds[:,0][train_lengths[0]:train_lengths[1]],
                 train_preds[:,0][train_lengths[1]:train_lengths[2]],train_preds[:,0][train_lengths[2]:train_lengths[3]]],
                 [y_train_reg[:train_lengths[0]],y_train_reg[train_lengths[0]:train_lengths[1]],
                 y_train_reg[train_lengths[1]:train_lengths[2]],y_train_reg[train_lengths[2]:train_lengths[3]]],
@@ -209,15 +215,9 @@ def evaluate(model):
                 [y_test_reg[:test_lengths[0]],y_test_reg[test_lengths[0]:test_lengths[1]],
                 y_test_reg[test_lengths[1]:test_lengths[2]],y_test_reg[test_lengths[2]:test_lengths[3]]])
     
-    ev.evaluate(train_preds[:,1:],
-                y_train_class,
-
-                dev_preds[:,1:],
-                y_dev_class,
-
-                test_preds[:,1:],
-                y_test_class)
-
+    helper_string += ev.evaluate(train_preds[:,1:],y_train_class,dev_preds[:,1:],y_dev_class,test_preds[:,1:],y_test_class)
+    with open("./preds/{0}.txt".format(experiment_tag),'w') as f:
+        f.write(helper_string)
 
 def pred_statistics(fname):
     data = np.loadtxt(fname)
@@ -235,6 +235,16 @@ def pred_statistics(fname):
 def save_outputs(gold_reg, gold_class, preds):
     gold = np.c_[gold_reg, gold_class, preds]
     np.savetxt('preds.txt', gold, fmt='%.3f %i %i %i %i %i %i %i %i %i %i %i %.3f %i %i %i %i %i %i %i %i %i %i %i')
+
+def printPredsToFileReg(infile, outfile, res, infileenc="utf-8"):
+    outf = open(outfile, 'w', encoding=infileenc)
+    with open(infile, encoding=infileenc, mode='r') as f:
+        outf.write(f.readline())
+        for i, line in enumerate(f):      
+            outl = line.strip("\n").split("\t")
+            outl[3] = str(round(res[i],3))
+            outf.write("\t".join(outl) + '\n')
+    outf.close()
 
 if __name__ == '__main__':
     print("use chars?", args.chars)
@@ -335,7 +345,7 @@ if __name__ == '__main__':
 
         return weighted_binary_crossentropy
 
-    weighted_binary_crossentropy = create_weighted_binary_crossentropy(0.2, 0.8)
+    weighted_binary_crossentropy = create_weighted_binary_crossentropy(args.bce, 1-args.bce)
 
     def customAuxLoss(y_true, y_pred):
         return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), weighted_binary_crossentropy(y_true, y_pred)),axis=1)
@@ -383,7 +393,7 @@ if __name__ == '__main__':
         evaluate(model)
 
         if args.plot:
-        plot_model(model, to_file='model.png')
+            plot_model(model, to_file='model.png')
 
         if args.save_word_weights:
             print('HUSK AT INDEX DICT IKKE ER DET SAMME SOM DET MODELEN BLEV TRAENET PÅ NOEDVENDIGVIS!')
@@ -414,7 +424,7 @@ if __name__ == '__main__':
         plot_model(model, to_file='model.png')
 
     if __debug__: print('Fitting...')
-    callbacks = [TensorBoard(log_dir='./logs/2ndovernite', write_grads=True, write_images=True, histogram_freq=1),
+    callbacks = [TensorBoard(log_dir='./logs/{0}'.format(experiment_tag)),
                 TerminateOnNaN()]
 
     if args.early_stopping:
@@ -476,6 +486,5 @@ if __name__ == '__main__':
                     weight = weight.replace(chars, '')
                 weight = weight.replace('  ', ' ')
                 f.write('{0} {1}\n'.format(word, weight))
-
 
     print('Completed: {0}'.format(experiment_tag))
