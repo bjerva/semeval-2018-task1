@@ -195,10 +195,12 @@ def evaluate(model):
                         test_preds[6],test_preds[7],test_preds[8],test_preds[9],test_preds[10],test_preds[11]]
     #save_outputs(y_train_reg, y_train_class, train_preds)
 
-    printPredsToFileReg(args.dev[0], './preds/sub/EI-reg_en_anger_pred.txt', dev_preds[:,0][:dev_lengths[0]])
-    printPredsToFileReg(args.dev[1], './preds/sub/EI-reg_en_fear_pred.txt', dev_preds[:,0][dev_lengths[0]:dev_lengths[1]])
-    printPredsToFileReg(args.dev[2], './preds/sub/EI-reg_en_joy_pred.txt', dev_preds[:,0][dev_lengths[1]:dev_lengths[2]])
-    printPredsToFileReg(args.dev[3], './preds/sub/EI-reg_en_sadness_pred.txt', dev_preds[:,0][dev_lengths[2]:dev_lengths[3]])
+   ''' sent_ids = printPredsToFileReg(args.dev[0], './preds/sub/EI-reg_en_anger_pred.txt', dev_preds[:,0][:dev_lengths[0]])
+    sent_ids.extend(printPredsToFileReg(args.dev[1], './preds/sub/EI-reg_en_fear_pred.txt', dev_preds[:,0][dev_lengths[0]:dev_lengths[1]]))
+    sent_ids.extend(printPredsToFileReg(args.dev[2], './preds/sub/EI-reg_en_joy_pred.txt', dev_preds[:,0][dev_lengths[1]:dev_lengths[2]]))
+    sent_ids.extend(printPredsToFileReg(args.dev[3], './preds/sub/EI-reg_en_sadness_pred.txt', dev_preds[:,0][dev_lengths[2]:dev_lengths[3]]))
+
+    printPredsToFileClass(args.aux[1], './preds/sub/E-C_en_pred.txt', dev_preds[:,1:], sent_ids) '''
 
     helper_string = ev.evaluate([train_preds[:,0][:train_lengths[0]],train_preds[:,0][train_lengths[0]:train_lengths[1]],
                 train_preds[:,0][train_lengths[1]:train_lengths[2]],train_preds[:,0][train_lengths[2]:train_lengths[3]]],
@@ -232,17 +234,28 @@ def pred_statistics(fname):
     print('Gold anger mean: {:.6f} \nPred anger mean: {:.6f}'.format(anger_mean[0], anger_mean[1]))
     #print(np.where(anger_sqrl > np.mean(anger_sqrl)))
 
-def save_outputs(gold_reg, gold_class, preds):
-    gold = np.c_[gold_reg, gold_class, preds]
-    np.savetxt('preds.txt', gold, fmt='%.3f %i %i %i %i %i %i %i %i %i %i %i %.3f %i %i %i %i %i %i %i %i %i %i %i')
-
 def printPredsToFileReg(infile, outfile, res, infileenc="utf-8"):
+    outf = open(outfile, 'wu', encoding=infileenc)
+    sent_ids = []
+    with open(infile, encoding=infileenc, mode='r') as f:
+        outf.write(f.readline())
+        for i, line in enumerate(f):
+            outl = line.strip("\n").split("\t")
+            outl[3] = str(round(res[i],3))
+            outf.write("\t".join(outl) + '\n')
+            sent_ids.append(outl[0])
+    outf.close()
+    return sent_ids
+
+def printPredsToFileClass(infile, outfile, res, sent_ids, infileenc="utf-8"):
     outf = open(outfile, 'w', encoding=infileenc)
     with open(infile, encoding=infileenc, mode='r') as f:
         outf.write(f.readline())
-        for i, line in enumerate(f):      
+        for i, line in enumerate(f):
             outl = line.strip("\n").split("\t")
-            outl[3] = str(round(res[i],3))
+            idx = sent_ids.index(outl[0])
+            for j in range(len(outl[2:])):
+                outl[j+2] = str(int(res[idx][j]))
             outf.write("\t".join(outl) + '\n')
     outf.close()
 
@@ -411,9 +424,11 @@ if __name__ == '__main__':
     else:
         model = build_model()
 
-    adam = optimizers.Adam(lr=0.001, decay=1e-6, clipnorm=1)
+    optimizer = optimizers.Adam(lr=0.001, decay=1e-6, clipnorm=1)
+    if args.nadam:
+        optimizer = optimizers.Nadam(lr=0.001, decay=1e-6, clipnorm=1)
     
-    model.compile(optimizer=adam,
+    model.compile(optimizer=optimizer,
         loss=model_losses,
         loss_weights=model_loss_weights,
         metrics=model_metrics)
