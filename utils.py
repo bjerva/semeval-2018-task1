@@ -68,11 +68,15 @@ def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_l
                     curr_X.append(word_to_id[UNKNOWN])
                 if re.match('^[0-9\.\,-]+$', token):
                     curr_X.append(word_to_id[NUMBER])
+                elif token.startswith('@'):
+                    curr_X.append(word_to_id[USER])
                 else:
-                    if token.lower() in word_to_id:
-                        curr_X.append(word_to_id[token.lower()])
+                    if token in word_to_id:
+                        curr_X.append(word_to_id[token])
                     elif args.ignore_embeddings:
                         curr_X.append(word_to_id[token.lower()])
+                    #elif (token.lower() not in word_to_id) and is_training:
+                        #curr_X.append(word_to_id[token.lower()])
                     else:
                         curr_X.append(word_to_id[UNKNOWN])
             X.append(curr_X)

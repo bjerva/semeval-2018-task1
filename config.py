@@ -51,6 +51,7 @@ SENT_PAD = '<PAD>'
 SENT_CONT = '##'
 UNKNOWN = '_UNK'
 NUMBER = '####'
+USER = '<USER>'
 
 if args.embeddings:
     emb_name = os.path.basename(args.embeddings)

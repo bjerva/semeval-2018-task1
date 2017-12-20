@@ -195,7 +195,7 @@ def evaluate(model):
                         test_preds[6],test_preds[7],test_preds[8],test_preds[9],test_preds[10],test_preds[11]]
     #save_outputs(y_train_reg, y_train_class, train_preds)
 
-   ''' sent_ids = printPredsToFileReg(args.dev[0], './preds/sub/EI-reg_en_anger_pred.txt', dev_preds[:,0][:dev_lengths[0]])
+    ''' sent_ids = printPredsToFileReg(args.dev[0], './preds/sub/EI-reg_en_anger_pred.txt', dev_preds[:,0][:dev_lengths[0]])
     sent_ids.extend(printPredsToFileReg(args.dev[1], './preds/sub/EI-reg_en_fear_pred.txt', dev_preds[:,0][dev_lengths[0]:dev_lengths[1]]))
     sent_ids.extend(printPredsToFileReg(args.dev[2], './preds/sub/EI-reg_en_joy_pred.txt', dev_preds[:,0][dev_lengths[1]:dev_lengths[2]]))
     sent_ids.extend(printPredsToFileReg(args.dev[3], './preds/sub/EI-reg_en_sadness_pred.txt', dev_preds[:,0][dev_lengths[2]:dev_lengths[3]]))
