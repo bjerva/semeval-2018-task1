@@ -13,7 +13,7 @@ from codecs import open
 bad_chars = [',', '.', '!', ' ']
 
 def read_word_embeddings(fname):
-    word_vec_map = {}
+    word_vec_map = {} #VI FUCKER NOGET OP MED EMBEDDINGS
     word_id_map = {}
     with open(fname, 'r', encoding='utf-8') as in_f:
         for idx, line in enumerate(in_f):
