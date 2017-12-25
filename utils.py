@@ -82,11 +82,6 @@ def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_l
             X.append(curr_X)
             if len(labels) <= 2:
                 floats = [float(labels[1])]
-                try:
-                    floats.extend(y_dict[sent_id])
-                except KeyError:
-                    floats.extend([-1.0]*11)
-                    reg_no_class += 1
                 y.append(floats)
             else:
                 floats = [float(x) for x in labels]

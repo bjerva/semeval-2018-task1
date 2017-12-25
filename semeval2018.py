@@ -39,8 +39,8 @@ import utils
 import data_utils
 from config import *
 
-sys.path.append('../')
-import kode.testkode.eval as ev
+#sys.path.append('../')
+#import kode.testkode.eval as ev
 from scipy.stats import pearsonr
 from sklearn.model_selection import KFold
 
@@ -143,18 +143,6 @@ def build_model():
     elif args.words:
         x = word_x
 
-    anger_output = Dense(1, activation='sigmoid', name='anger_output')(x)
-    anticipation_output = Dense(1, activation='sigmoid', name='anticipation_output')(x)
-    disgust_output = Dense(1, activation='sigmoid', name='disgust_output')(x)
-    fear_output = Dense(1, activation='sigmoid', name='fear_output')(x)
-    joy_output = Dense(1, activation='sigmoid', name='joy_output')(x)
-    love_output = Dense(1, activation='sigmoid', name='love_output')(x)
-    optimism_output = Dense(1, activation='sigmoid', name='optimism_output')(x)
-    pessimism_output = Dense(1, activation='sigmoid', name='pessimism_output')(x)
-    sadness_output = Dense(1, activation='sigmoid', name='sadness_output')(x)
-    surprise_output = Dense(1, activation='sigmoid', name='surprise_output')(x)
-    trust_output = Dense(1, activation='sigmoid', name='trust_output')(x)
-
     main_output = Dense(1, activation='linear', name='main_output')(x)
 
     if args.chars and args.words:
@@ -164,13 +152,180 @@ def build_model():
     elif args.words:
         model_input = [word_input, ]
 
-    model_output = [main_output, anger_output, anticipation_output, disgust_output, fear_output,
-                    joy_output, love_output, optimism_output, pessimism_output, sadness_output,
-                    surprise_output, trust_output]
+    model_output = [main_output, ]
 
     model = Model(inputs=model_input, outputs=model_output)
 
     return model
+
+emdict = {'anger' : 0, 'fear' : 1, 'joy' : 2, 'sadness' : 3}
+revdict = {1701 : 'anger', 2252 : 'fear', 1616 : 'joy', 1533 : 'sadness'}
+
+def calculate_reg(gold, preds):
+    pearson = pearsonr(gold, preds)[0]
+
+    gold_high = []
+    pred_high = []
+
+    for i, value in enumerate(gold):
+        if value > 0.5:
+            gold_high.append(gold[i])
+            pred_high.append(preds[i])
+
+    pearson_high = pearsonr(gold_high, pred_high)[0]
+
+    return np.round(pearson, decimals=3), np.round(pearson_high, decimals=3)
+
+def calculate_class(preds, gold):
+    for i, augmented in enumerate(gold):
+        if sum(augmented) < 0:
+            gold = np.delete(gold, i, axis=0)
+            preds = np.delete(preds, i, axis=0)
+    micro_accuracy = []
+
+    actual_emotion_micro = [0]*12
+    correct_emotion_micro = [0]*12
+    assigned_emotion_micro = [0]*12
+
+    p_micro = [0]*12
+    r_micro = [0]*12
+    f_micro = [0]*12
+    avg_f_micro = 0
+
+    p_macro = 0
+    r_macro = 0
+    avg_f_macro = 0
+
+
+    for i, labels in enumerate(gold):
+        
+        #Convert to class representation
+        gold_labels = np.where(labels == 1)[0]
+        pred_labels = np.where(preds[i] == 1)[0]
+
+        #Neutral emotions, all 11 emotions 0
+        if len(gold_labels) == 0:
+            gold_labels = np.append(gold_labels, 11)
+        if len(pred_labels) == 0:
+            pred_labels = np.append(pred_labels, 11)
+        
+        for value_gold in gold_labels:
+            actual_emotion_micro[value_gold] += 1
+            if value_gold in pred_labels:
+                correct_emotion_micro[value_gold] += 1
+
+        for value_pred in pred_labels:
+            assigned_emotion_micro[value_pred] += 1
+        
+        intersection = len(np.intersect1d(gold_labels, pred_labels))
+        union = len(np.union1d(gold_labels, pred_labels))
+        micro_accuracy.append(intersection/union)
+
+    macro_accuracy = sum(micro_accuracy)/len(gold)
+
+    for i in range(12):
+        try:
+            p_micro[i] = correct_emotion_micro[i]/assigned_emotion_micro[i]
+        except ZeroDivisionError:
+            p_micro[i] = 0
+        
+        try:
+            r_micro[i] = correct_emotion_micro[i]/actual_emotion_micro[i]
+        except ZeroDivisionError:
+            r_micro[i] = 0
+
+        try:
+            f_micro[i] = 2*p_micro[i]*r_micro[i]/(p_micro[i]+r_micro[i])
+        except ZeroDivisionError:
+            f_micro[i] = 0
+    
+    p_micro = np.round(p_micro, decimals=3)
+    r_micro = np.round(r_micro, decimals=3)
+    f_micro = np.round(f_micro, decimals=3)
+
+    avg_f_micro = sum(f_micro)/len(f_micro)
+
+    p_macro = sum(correct_emotion_micro)/sum(assigned_emotion_micro)
+    r_macro = sum(correct_emotion_micro)/sum(actual_emotion_micro)
+    try:
+        avg_f_macro = 2*p_macro*r_macro/(p_macro+r_macro)
+    except ZeroDivisionError:
+        avg_f_macro = 0
+    
+    avg_f_macro = round(avg_f_macro, 3)
+    avg_f_micro = round(avg_f_micro, 3)
+    
+    return macro_accuracy, p_micro, r_micro, f_micro, avg_f_micro, p_macro, r_macro, avg_f_macro
+    
+
+def ev(train_preds, train_labels, dev_preds, dev_labels, test_preds, test_labels):
+    helper_string = ''
+    if len(train_preds) == 4:
+        helper_string += ('Sanity check:\n')
+        pearson_avg_train = []
+        for i, gold in enumerate(train_labels):
+            pearson, pearson_high = calculate_reg(gold, train_preds[i])
+            helper_string += ("Pearson for train tweets, {0}: {1}\n".format(revdict[i], pearson))
+            helper_string += ("Pearson for > 0.5 train tweets, {0}: {1}\n".format(revdict[i], pearson_high))
+            pearson_avg_train.append(pearson)
+        helper_string += ("Average Pearson for train tweets: {0:.3f}\n".format(sum(pearson_avg_train)/len(pearson_avg_train)))
+
+        helper_string += ('Pearson for dev set:\n')
+        pearson_avg_dev = []
+        for i, gold in enumerate(dev_labels):
+            pearson, pearson_high = calculate_reg(gold, dev_preds[i])
+            helper_string += ("Pearson for dev tweets, {0}: {1}\n".format(revdict[i], pearson))
+            helper_string += ("Pearson for > 0.5 dev tweets, {0}: {1}\n".format(revdict[i], pearson_high))
+            pearson_avg_dev.append(pearson)
+        helper_string += ("Average Pearson for dev tweets: {0:.3f}\n".format(sum(pearson_avg_dev)/len(pearson_avg_dev)))
+
+        helper_string += ('Pearson for test set:\n')
+        pearson_avg_test = []
+        for i, gold in enumerate(test_labels):
+            pearson, pearson_high = calculate_reg(gold, test_preds[i])
+            helper_string += ("Pearson for test tweets, {0}: {1}\n".format(revdict[i], pearson))
+            helper_string += ("Pearson for > 0.5 test tweets, {0}: {1}\n".format(revdict[i], pearson_high))
+            pearson_avg_test.append(pearson)
+        helper_string += ("Average Pearson for test tweets: {0:.3f}\n".format(sum(pearson_avg_test)/len(pearson_avg_test)))
+
+    elif len(train_preds) > 12:
+        helper_string += ('Sanity check:\n')
+        pearson, pearson_high = calculate_reg(train_labels, train_preds)
+        helper_string += ("Pearson for train tweets, {0}: {1}\n".format(revdict[len(train_preds)], pearson))
+        helper_string += ("Pearson for > 0.5 train tweets, {0}: {1}\n".format(revdict[len(train_preds)], pearson_high))
+        helper_string += ('Pearson for dev set:\n')
+        pearson, pearson_high = calculate_reg(dev_labels, dev_preds)
+        helper_string += ("Pearson for dev tweets, {0}: {1}\n".format(revdict[len(train_preds)], pearson))
+        helper_string += ("Pearson for > 0.5 dev tweets, {0}: {1}\n".format(revdict[len(train_preds)], pearson_high))
+        helper_string += ('Pearson for test set:\n')
+        pearson, pearson_high = calculate_reg(test_labels, test_preds)
+        helper_string += ("Pearson for test tweets, {0}: {1}\n".format(revdict[len(train_preds)], pearson))
+        helper_string += ("Pearson for > 0.5 test tweets, {0}: {1}\n".format(revdict[len(train_preds)], pearson_high))
+    else:
+        helper_string += ('Sanity check:\n')
+        macro_accuracy, p_micro, r_micro, f_micro, avg_f_micro, p_macro, r_macro, avg_f_macro = calculate_class(train_preds, train_labels)
+        helper_string += ("Global accuracy for train tweets: {0:.3f}\n".format(macro_accuracy))
+        helper_string += ("F-micro for emotion classes:\n")
+        helper_string += str(f_micro)
+        helper_string += '\n'
+        helper_string += ("and averaged: " + str(avg_f_micro)+'\n')
+
+        helper_string += ('Accuracy for dev set:\n')
+        macro_accuracy, p_micro, r_micro, f_micro, avg_f_micro, p_macro, r_macro, avg_f_macro = calculate_class(dev_preds, dev_labels)
+        helper_string += ("Global accuracy for dev tweets: {0:.3f}\n".format(macro_accuracy))
+        helper_string += ("F-micro for emotion classes:\n")
+        helper_string += str(f_micro)
+        helper_string += '\n'
+        helper_string += ("and averaged: " + str(avg_f_micro)+'\n')
+
+        helper_string += ('Accuracy for test set:\n')
+        macro_accuracy, p_micro, r_micro, f_micro, avg_f_micro, p_macro, r_macro, avg_f_macro = calculate_class(test_preds, test_labels)
+        helper_string += ("Global accuracy for test tweets: {0:.3f}\n".format(macro_accuracy))
+        helper_string += ("F-micro for emotion classes:\n")
+        helper_string += str(f_micro)
+        helper_string += '\n'
+        helper_string += ("and averaged: " + str(avg_f_micro)+'\n')
+    return helper_string
 
 def evaluate(model):
     '''
@@ -179,20 +334,6 @@ def evaluate(model):
     train_preds = model.predict(X_train, batch_size=args.bsize, verbose=1)
     dev_preds = model.predict(X_dev, batch_size=args.bsize, verbose=1)
     test_preds = model.predict(X_test, batch_size=args.bsize, verbose=1)
-
-    for i in range(11):
-        train_preds[i+1] = np.round(train_preds[i+1])
-        dev_preds[i+1] = np.round(dev_preds[i+1])
-        test_preds[i+1] = np.round(test_preds[i+1])
-        
-    train_preds = np.c_[train_preds[0],train_preds[1],train_preds[2],train_preds[3],train_preds[4],train_preds[5],
-                        train_preds[6],train_preds[7],train_preds[8],train_preds[9],train_preds[10],train_preds[11]]
-
-    dev_preds = np.c_[dev_preds[0],dev_preds[1],dev_preds[2],dev_preds[3],dev_preds[4],dev_preds[5],
-                        dev_preds[6],dev_preds[7],dev_preds[8],dev_preds[9],dev_preds[10],dev_preds[11]]
-
-    test_preds = np.c_[test_preds[0],test_preds[1],test_preds[2],test_preds[3],test_preds[4],test_preds[5],
-                        test_preds[6],test_preds[7],test_preds[8],test_preds[9],test_preds[10],test_preds[11]]
     #save_outputs(y_train_reg, y_train_class, train_preds)
 
     ''' sent_ids = printPredsToFileReg(args.dev[0], './preds/sub/EI-reg_en_anger_pred.txt', dev_preds[:,0][:dev_lengths[0]])
@@ -201,23 +342,23 @@ def evaluate(model):
     sent_ids.extend(printPredsToFileReg(args.dev[3], './preds/sub/EI-reg_en_sadness_pred.txt', dev_preds[:,0][dev_lengths[2]:dev_lengths[3]]))
 
     printPredsToFileClass(args.aux[1], './preds/sub/E-C_en_pred.txt', dev_preds[:,1:], sent_ids) '''
+    if args.solo:
+        helper_string = ev([train_preds[:,0][:train_lengths[0]],train_preds[:,0][train_lengths[0]:train_lengths[1]],
+                    train_preds[:,0][train_lengths[1]:train_lengths[2]],train_preds[:,0][train_lengths[2]:train_lengths[3]]],
+                    [y_train[:,0][:train_lengths[0]],y_train[:,0][train_lengths[0]:train_lengths[1]],
+                    y_train[:,0][train_lengths[1]:train_lengths[2]],y_train[:,0][train_lengths[2]:train_lengths[3]]],
 
-    helper_string = ev.evaluate([train_preds[:,0][:train_lengths[0]],train_preds[:,0][train_lengths[0]:train_lengths[1]],
-                train_preds[:,0][train_lengths[1]:train_lengths[2]],train_preds[:,0][train_lengths[2]:train_lengths[3]]],
-                [y_train_reg[:train_lengths[0]],y_train_reg[train_lengths[0]:train_lengths[1]],
-                y_train_reg[train_lengths[1]:train_lengths[2]],y_train_reg[train_lengths[2]:train_lengths[3]]],
+                    [dev_preds[:,0][:dev_lengths[0]],dev_preds[:,0][dev_lengths[0]:dev_lengths[1]],
+                    dev_preds[:,0][dev_lengths[1]:dev_lengths[2]],dev_preds[:,0][dev_lengths[2]:dev_lengths[3]]],
+                    [y_dev[:,0][:dev_lengths[0]],y_dev[:,0][dev_lengths[0]:dev_lengths[1]],
+                    y_dev[:,0][dev_lengths[1]:dev_lengths[2]],y_dev[:,0][dev_lengths[2]:dev_lengths[3]]],
 
-                [dev_preds[:,0][:dev_lengths[0]],dev_preds[:,0][dev_lengths[0]:dev_lengths[1]],
-                dev_preds[:,0][dev_lengths[1]:dev_lengths[2]],dev_preds[:,0][dev_lengths[2]:dev_lengths[3]]],
-                [y_dev_reg[:dev_lengths[0]],y_dev_reg[dev_lengths[0]:dev_lengths[1]],
-                y_dev_reg[dev_lengths[1]:dev_lengths[2]],y_dev_reg[dev_lengths[2]:dev_lengths[3]]],
-
-                [test_preds[:,0][:test_lengths[0]],test_preds[:,0][test_lengths[0]:test_lengths[1]],
-                test_preds[:,0][test_lengths[1]:test_lengths[2]],test_preds[:,0][test_lengths[2]:test_lengths[3]]],
-                [y_test_reg[:test_lengths[0]],y_test_reg[test_lengths[0]:test_lengths[1]],
-                y_test_reg[test_lengths[1]:test_lengths[2]],y_test_reg[test_lengths[2]:test_lengths[3]]])
-    
-    helper_string += ev.evaluate(train_preds[:,1:],y_train_class,dev_preds[:,1:],y_dev_class,test_preds[:,1:],y_test_class)
+                    [test_preds[:,0][:test_lengths[0]],test_preds[:,0][test_lengths[0]:test_lengths[1]],
+                    test_preds[:,0][test_lengths[1]:test_lengths[2]],test_preds[:,0][test_lengths[2]:test_lengths[3]]],
+                    [y_test[:,0][:test_lengths[0]],y_test[:,0][test_lengths[0]:test_lengths[1]],
+                    y_test[:,0][test_lengths[1]:test_lengths[2]],y_test[:,0][test_lengths[2]:test_lengths[3]]])
+    else:
+        helper_string = ev(train_preds[:,0], y_train[:,0], dev_preds[:,0], y_dev[:,0], test_preds[:,0], y_test[:,0])
     with open("./preds/{0}.txt".format(experiment_tag),'w') as f:
         f.write(helper_string)
 
@@ -280,16 +421,10 @@ if __name__ == '__main__':
     X_test_word = np.asarray(X_test_word)
 
     y_train = np.asarray(y_train)
-    y_train_reg = y_train[:,0]
-    y_train_class = y_train[:,1:]
 
     y_dev = np.asarray(y_dev)
-    y_dev_reg = y_dev[:,0]
-    y_dev_class = y_dev[:,1:]
     
     y_test = np.asarray(y_test)
-    y_test_reg = y_test[:,0]
-    y_test_class = y_test[:,1:]
 
     if args.words:
         if args.ignore_embeddings or not args.embeddings:
@@ -342,63 +477,16 @@ if __name__ == '__main__':
     
     MASK = tf.convert_to_tensor([-1.0])
 
-    def create_weighted_binary_crossentropy(zero_weight, one_weight):
 
-        def weighted_binary_crossentropy(y_true, y_pred):
+    model_outputs = [y_train]
 
-            # Calculate the binary crossentropy
-            b_ce = K.binary_crossentropy(y_true, y_pred)
-
-            # Apply the weights
-            weight_vector = y_true * one_weight + (1. - y_true) * zero_weight
-            weighted_b_ce = weight_vector * b_ce
-
-            # Return the mean error
-            return weighted_b_ce
-
-        return weighted_binary_crossentropy
-
-    weighted_binary_crossentropy = create_weighted_binary_crossentropy(args.bce, 1-args.bce)
-
-    def customAuxLoss(y_true, y_pred):
-        return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), weighted_binary_crossentropy(y_true, y_pred)),axis=1)
-
-    model_outputs = [y_train_reg, y_train_class[:,0], y_train_class[:,1], y_train_class[:,2], y_train_class[:,3],
-                    y_train_class[:,4], y_train_class[:,5], y_train_class[:,6], y_train_class[:,7],
-                    y_train_class[:,8], y_train_class[:,9], y_train_class[:,10]]
-
-    model_losses = {'main_output' : 'mean_squared_error',
-                    'anger_output' : customAuxLoss,
-                    'anticipation_output' : customAuxLoss,
-                    'disgust_output' : customAuxLoss,
-                    'fear_output' : customAuxLoss,
-                    'joy_output' : customAuxLoss,
-                    'love_output' : customAuxLoss,
-                    'optimism_output' : customAuxLoss,
-                    'pessimism_output' : customAuxLoss,
-                    'sadness_output' : customAuxLoss,
-                    'surprise_output' : customAuxLoss,
-                    'trust_output' : customAuxLoss}
-    model_loss_weights = [0.45, 0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05]
+    model_losses = {'main_output' : 'mean_squared_error'}
+    model_loss_weights = [1]
 
     def mean_pred(y_true, y_pred):
         return K.mean(K.abs(y_true - y_pred))
 
-    def customAuxMetric(y_true, y_pred):
-        return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,-1.0), K.cast(K.equal(y_true, K.round(y_pred)),dtype='float32')))
-
-    model_metrics = {'main_output' : mean_pred,
-                    'anger_output' : customAuxMetric,
-                    'anticipation_output' : customAuxMetric,
-                    'disgust_output' : customAuxMetric,
-                    'fear_output' : customAuxMetric,
-                    'joy_output' : customAuxMetric,
-                    'love_output' : customAuxMetric,
-                    'optimism_output' : customAuxMetric,
-                    'pessimism_output' : customAuxMetric,
-                    'sadness_output' : customAuxMetric,
-                    'surprise_output' : customAuxMetric,
-                    'trust_output' : customAuxMetric} 
+    model_metrics = {'main_output' : mean_pred} 
 
     if args.reuse:
         print('Loading model...')
@@ -466,9 +554,7 @@ if __name__ == '__main__':
                         verbose=args.verbose)
     else:
         model.fit(X_train, model_outputs,
-            validation_data=(X_dev, [y_dev_reg, y_dev_class[:,0], y_dev_class[:,1], y_dev_class[:,2], y_dev_class[:,3],
-                y_dev_class[:,4], y_dev_class[:,5], y_dev_class[:,6], y_dev_class[:,7],
-                y_dev_class[:,8], y_dev_class[:,9], y_dev_class[:,10]]),
+            validation_data=(X_dev, [y_dev,]),
                 epochs=args.epochs,
                 shuffle=True,
                 batch_size=args.bsize,
