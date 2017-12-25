@@ -424,9 +424,9 @@ if __name__ == '__main__':
     else:
         model = build_model()
 
-    optimizer = optimizers.Adam(lr=0.001, decay=1e-6, clipnorm=1)
+    optimizer = optimizers.Adam(lr=args.lr, decay=1e-6, clipnorm=1)
     if args.nadam:
-        optimizer = optimizers.Nadam(lr=0.001, decay=1e-6, clipnorm=1)
+        optimizer = optimizers.Nadam(lr=args.lr, clipnorm=1)
     
     model.compile(optimizer=optimizer,
         loss=model_losses,
@@ -444,11 +444,9 @@ if __name__ == '__main__':
 
     if args.early_stopping:
         callbacks.append(EarlyStopping(monitor='val_loss', patience=args.early_stopping))
-
     if args.kfold:
         kf = KFold(n_splits=args.kfold, shuffle=True)
         for train_index, test_index in kf.split(X_train_word):
-            import ipdb; ipdb.set_trace()
             model.fit([X_train[0][train_index], X_train[1][train_index]], [y_train_reg[train_index], 
                             y_train_class[:,0][train_index], y_train_class[:,1][train_index], y_train_class[:,2][train_index],
                             y_train_class[:,3][train_index], y_train_class[:,4][train_index], y_train_class[:,5][train_index], 

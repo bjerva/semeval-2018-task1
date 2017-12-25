@@ -40,6 +40,7 @@ parser.add_argument('--kfold', help='amount of folds in validation', type=int)
 parser.add_argument('--save-word-weights', help='save the trained word embedding weights', action='store_true')
 parser.add_argument('--bce', help='Weighted BCE', type=float, default=0.3)
 parser.add_argument('--nadam', help='Use Adam with nesterov momentum', action='store_true')
+parser.add_argument('--lr', help='learning rate', type=float, default=0.001)
 
 
 args = parser.parse_args()
@@ -62,20 +63,14 @@ if args.bytes:
     args.chars = True
 
 # Logging name / path
-experiment_tag = 'ep-{0}_bsize-{1}_emb-{2}_train-{3}_dev-{4}_test-{5}_words-{6}_chars-{7}_resnet-{8}_time-{9}'.format(
+experiment_tag = '_ep-{0}_bsize-{1}_emb-{2}_time-{3}'.format(
 args.epochs,
 args.bsize,
 emb_name,
-os.path.basename(args.train[0]),
-os.path.basename(args.dev[0]),
-os.path.basename(args.test[0]),
-args.words,
-args.chars,
-args.resnet,
 time.time()
 )
 if args.tag:
-    experiment_tag += '_tag-{0}'.format(args.tag)
+    experiment_tag = 'tag-{0}'.format(args.tag) + experiment_tag
 
 if not args.chars and not args.words:
     print("need to specify (either or both): --chars --words")
