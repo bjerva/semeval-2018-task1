@@ -379,7 +379,9 @@ if __name__ == '__main__':
                     'sadness_output' : customAuxLoss,
                     'surprise_output' : customAuxLoss,
                     'trust_output' : customAuxLoss}
-    model_loss_weights = [0.45, 0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05]
+    model_loss_weights = [(1-args.loss_weights)/11]*11
+    model_loss_weights.insert(0, args.loss_weights)
+    import ipdb; ipdb.set_trace()
 
     def mean_pred(y_true, y_pred):
         return K.mean(K.abs(y_true - y_pred))

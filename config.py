@@ -41,6 +41,7 @@ parser.add_argument('--save-word-weights', help='save the trained word embedding
 parser.add_argument('--bce', help='Weighted BCE', type=float, default=0.3)
 parser.add_argument('--nadam', help='Use Adam with nesterov momentum', action='store_true')
 parser.add_argument('--lr', help='learning rate', type=float, default=0.001)
+parser.add_argument('--loss-weights', help='The ratio between class and reg loss', type=float, default=0.5)
 
 
 args = parser.parse_args()
