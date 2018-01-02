@@ -9,6 +9,7 @@ Run with python -u to make sure slurm logs are written instantly.
 
 # Random seeds
 import numpy as np
+import pandas as pd
 import random
 random.seed(1337)
 np.random.seed(1337)  # Freeze seeds for reproducibility
@@ -27,6 +28,8 @@ from keras import optimizers
 from keras.utils import plot_model
 import pydot
 import tensorflow as tf
+import matplotlib.pyplot as plt
+
 
 # Standard
 import os
@@ -193,7 +196,8 @@ def evaluate(model):
 
     test_preds = np.c_[test_preds[0],test_preds[1],test_preds[2],test_preds[3],test_preds[4],test_preds[5],
                         test_preds[6],test_preds[7],test_preds[8],test_preds[9],test_preds[10],test_preds[11]]
-    #save_outputs(y_train_reg, y_train_class, train_preds)
+
+    save_outputs(y_test_reg, y_test_class, test_preds)
 
     ''' sent_ids = printPredsToFileReg(args.dev[0], './preds/sub/EI-reg_en_anger_pred.txt', dev_preds[:,0][:dev_lengths[0]])
     sent_ids.extend(printPredsToFileReg(args.dev[1], './preds/sub/EI-reg_en_fear_pred.txt', dev_preds[:,0][dev_lengths[0]:dev_lengths[1]]))
@@ -221,18 +225,31 @@ def evaluate(model):
     with open("./preds/{0}.txt".format(experiment_tag),'w') as f:
         f.write(helper_string)
 
+
+def save_outputs(gold_reg, gold_class, preds):
+    gold = np.c_[gold_reg, gold_class, preds]
+    np.savetxt('./preds/statpreds.txt', gold, fmt='%.3f %i %i %i %i %i %i %i %i %i %i %i %.3f %i %i %i %i %i %i %i %i %i %i %i')
+
 def pred_statistics(fname):
     data = np.loadtxt(fname)
 
     anger_var = (np.var(data[:train_lengths[0],0]), np.var(data[:train_lengths[0],12]))
     anger_mean = (np.mean(data[:train_lengths[0],0]), np.mean(data[:train_lengths[0],12]))
-    anger_sqrl = (data[:train_lengths[0],0] - data[:train_lengths[0],12])**2
+
     fear_var = (np.var(data[train_lengths[0]:train_lengths[1],0]), np.var(data[train_lengths[0]:train_lengths[1],12]))
+    fear_mean = (np.mean(data[train_lengths[0]:train_lengths[1],0]), np.mean(data[train_lengths[0]:train_lengths[1],12]))
+
     joy_var = (np.var(data[train_lengths[1]:train_lengths[2],0]), np.var(data[train_lengths[1]:train_lengths[2],12]))
+    joy_mean = (np.mean(data[train_lengths[1]:train_lengths[2],0]), np.mean(data[train_lengths[1]:train_lengths[2],12]))
+
     sadness_var = (np.var(data[train_lengths[2]:train_lengths[3],0]), np.var(data[train_lengths[2]:train_lengths[3],12]))
-    print('Gold anger variance: {:.6f} \nPred anger variance: {:.6f}'.format(anger_var[0], anger_var[1]))
-    print('Gold anger mean: {:.6f} \nPred anger mean: {:.6f}'.format(anger_mean[0], anger_mean[1]))
-    #print(np.where(anger_sqrl > np.mean(anger_sqrl)))
+    sadness_mean = (np.mean(data[train_lengths[2]:train_lengths[3],0]), np.mean(data[train_lengths[2]:train_lengths[3],12]))
+
+    pred_data = np.c_[data[:train_lengths[0]][:,12], data[train_lengths[0]:train_lengths[1]][:,12], data[train_lengths[1]:train_lengths[2]][:,12], data[train_lengths[2]:train_lengths[3]][:,12]]
+    df = pd.DataFrame(pred_data, columns=['Anger', 'Fear', 'Joy', 'Sadness'])
+    df.plot.box()
+    plt.show()
+    
 
 def printPredsToFileReg(infile, outfile, res, infileenc="utf-8"):
     outf = open(outfile, 'wu', encoding=infileenc)
@@ -381,7 +398,6 @@ if __name__ == '__main__':
                     'trust_output' : customAuxLoss}
     model_loss_weights = [(1-args.loss_weights)/11]*11
     model_loss_weights.insert(0, args.loss_weights)
-    import ipdb; ipdb.set_trace()
 
     def mean_pred(y_true, y_pred):
         return K.mean(K.abs(y_true - y_pred))
@@ -480,6 +496,7 @@ if __name__ == '__main__':
         print('Evaluating...')
     
     evaluate(model)
+
 
     if args.save:
         model.save("models/{0}.h5".format(experiment_tag))
