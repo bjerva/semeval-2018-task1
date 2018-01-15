@@ -11,6 +11,7 @@ from config import *
 from codecs import open
 
 bad_chars = [',', '.', '!', ' ']
+emo_dict = {'anger' : 0, 'fear' : 1, 'joy' : 2, 'sadness' : 3}
 
 def read_word_embeddings(fname):
     word_vec_map = {} #VI FUCKER NOGET OP MED EMBEDDINGS
@@ -81,7 +82,8 @@ def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_l
                         curr_X.append(word_to_id[UNKNOWN])
             X.append(curr_X)
             if len(labels) <= 2:
-                floats = [float(labels[1])]
+                floats = [-1.0, -1.0, -1.0, -1.0]
+                floats[emo_dict[labels[0]]] = float(labels[1])
                 try:
                     floats.extend(y_dict[sent_id])
                 except KeyError:
