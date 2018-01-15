@@ -44,7 +44,7 @@ def load_character_data(fname, char_to_id, max_sent_len, max_word_len=32, is_aux
             X.append(char_ids)
     return X
 
-def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len, y_dict={}, is_training=False):
+def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len, y_dict={}, is_training=False, is_test=False):
     """
     Reading of CoNLL file, converting to word ids.
     If is_training, unknown mwes will be added to the embedding dictionary using a heuristic.
@@ -80,17 +80,36 @@ def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_l
                     else:
                         curr_X.append(word_to_id[UNKNOWN])
             X.append(curr_X)
-            if len(labels) <= 2:
-                floats = [float(labels[1])]
-                try:
-                    floats.extend(y_dict[sent_id])
-                except KeyError:
-                    floats.extend([-1.0]*11)
-                    reg_no_class += 1
-                y.append(floats)
+            if is_test:
+                if len(labels) <= 2:
+                    floats = [labels[1]]
+                    try:
+                        floats.extend(y_dict[sent_id])
+                    except KeyError:
+                        floats.extend([-1.0]*11)
+                        reg_no_class += 1
+                    y.append(floats)
+                elif labels[4] == 'NONE':
+                    floats = [x for x in labels]
+                    y_dict[sent_id] = floats 
+                else:
+                    floats = [float(x) for x in labels]
+                    y_dict[sent_id] = floats
             else:
-                floats = [float(x) for x in labels]
-                y_dict[sent_id] = floats 
+                if len(labels) <= 2:
+                    floats = [float(labels[1])]
+                    try:
+                        floats.extend(y_dict[sent_id])
+                    except KeyError:
+                        floats.extend([-1.0]*11)
+                        reg_no_class += 1
+                    y.append(floats)
+                elif labels[4] == 'NONE':
+                    floats = [x for x in labels]
+                    y_dict[sent_id] = floats 
+                else:
+                    floats = [float(x) for x in labels]
+                    y_dict[sent_id] = floats 
             curr_X = []
 
     sent_lens = [len(s) for s in X]

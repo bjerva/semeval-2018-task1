@@ -84,7 +84,7 @@ def read_word_data(trainfiles, devfiles, testfiles, aux, word_to_id, word_vector
     prev = 0
     if testfiles:
         for testfile in testfiles:
-            (X_test_ids, y_test_ids,_,_,_, length, _) = utils.load_word_data(testfile, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len)
+            (X_test_ids, y_test_ids,_,_,_, length, _) = utils.load_word_data(testfile, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len, is_test=True)
             X_test_temp, y_test_temp, word_vectors = preprocess_words(X_test_ids, y_test_ids, word_to_id, tag_to_id, word_vectors, max_sent_len)
 
             test_lengths.append(length + prev)
@@ -150,5 +150,4 @@ def preprocess_chars(X_ids, char_to_id, max_sent_len, max_word_len):
         X.append(curr_X)
 
     X = sequence.pad_sequences(X, maxlen=max_word_len, dtype=np.int16, value=0)
-
     return X

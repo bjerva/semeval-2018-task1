@@ -27,19 +27,71 @@ d = {'500': pd.Series([0.4, 0.4, 0.5, 0.2, 0.45], index=['Anger', 'Fear', 'Joy',
 #df.plot(kind='bar', title="Pearson scores of different max_features with n-gram range 1-5 and custom hashtag feature added")
 #plt.show()
 
-max_f = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
-y = [0.224, 0.371, 0.338, 0.361, 0.374, 0.411, 0.355, 0.212]
+'''anger_training = np.loadtxt('./val_losses/anger.csv', delimiter=',', skiprows=1)
+anticipation_training = np.loadtxt('./val_losses/anticipation.csv', delimiter=',', skiprows=1)
+disgust_training = np.loadtxt('./val_losses/disgust.csv', delimiter=',', skiprows=1)
+fear_training = np.loadtxt('./val_losses/fear.csv', delimiter=',', skiprows=1)
+joy_training = np.loadtxt('./val_losses/joy.csv', delimiter=',', skiprows=1)
+love_training = np.loadtxt('./val_losses/love.csv', delimiter=',', skiprows=1)
+optimism_training = np.loadtxt('./val_losses/optimism.csv', delimiter=',', skiprows=1)
+pessimism_training = np.loadtxt('./val_losses/pessimism.csv', delimiter=',', skiprows=1)
+sadness_training = np.loadtxt('./val_losses/sadness.csv', delimiter=',', skiprows=1)
+surprise_training = np.loadtxt('./val_losses/surprise.csv', delimiter=',', skiprows=1)
+trust_training = np.loadtxt('./val_losses/trust.csv', delimiter=',', skiprows=1)
 
-plt.plot(max_f, y)
+values = np.c_[anger_training[:,2], anticipation_training[:,2],disgust_training[:,2], fear_training[:,2],
+            joy_training[:,2], love_training[:,2], optimism_training[:,2], pessimism_training[:,2],sadness_training[:,2],
+            surprise_training[:,2], trust_training[:,2]]
+avg = np.mean(values, axis=1)
+epochs = anger_training[:,1]
+reg = np.loadtxt('./val_losses/main_output.csv', delimiter=',', skiprows=1)[:,2]
+
+plt.plot(epochs, avg, label='Average classification')
+plt.plot(epochs, reg, label='Regression')
 plt.grid()
-plt.xticks(np.arange(0.1, 0.95, 0.1))
-plt.xlim(min(max_f), max(max_f))
-plt.title('Pearson score as a function of differing dropout values')
-plt.ylabel('Pearson score')
-plt.xlabel('Dropout values')
+plt.legend(loc='best')
+plt.xticks(np.arange(0, 12, 1))
+plt.ylim(0, 0.3)
+plt.title('Validation loss as a function of number of epochs')
+plt.ylabel('loss')
+plt.xlabel('Epochs')
 fig = plt.gcf()
 fig.set_size_inches(12,5)
-plt.savefig('../report/pictures/DropoutPlot.png', dpi=200)
+plt.savefig('../report/pictures/regclassvalidation.png', dpi=200)'''
+
+'''classrun = np.loadtxt('../kode/testkode/preds.txt', dtype={ 'names': ('max', 'bla', 'feats', 'blahh', 'accuracy', 'f-micro', 'blahhhh', 'anger', 'anticipation', 'disgust', 'fear', 'joy', 'love', 'optimism', 'pessimism', 'sadness', 'surprise', 'trust', 'none', 'hardbrack'),
+                                                            'formats': ['S4', 'S4', 'i4', 'S4', 'f4', 'S4', 'S4', 'f4', 'f4', 'f4', 'f4', 'f4','f4', 'f4', 'f4', 'f4', 'f4', 'f4', 'f4', 'S4']})
+
+y = classrun['accuracy']
+x = classrun['feats']
+plt.plot(x, y)
+plt.grid()
+plt.xticks(np.arange(0, 31000, 1000))
+plt.title('Accuracy as a function of max features')
+plt.ylabel('Accuracy')
+plt.xlabel('Max features')
+fig = plt.gcf()
+fig.set_size_inches(18,5)
+plt.savefig('../report/pictures/max_f_accuracy.png', dpi=200)'''
+
+
+
+'''
+LW = [0.2,    0.3,   0.4,   0.45,  0.5,   0.6,   0.7,    0.8,   0.9]
+reg = [0.318, 0.330, 0.286, 0.411, 0.351, 0.376, -0.051, 0.376, 0.374]
+#Ec = [0.432, 0.431, 0.434, 0.451, 0.434, 0.452, 0.438, 0.416, 0.432]
+
+plt.plot(LW, reg)
+#plt.plot(LW, Ec, label='Classification as accuracy')
+plt.grid()
+#plt.legend(loc='best')
+plt.xticks(np.arange(0.1, 0.95, 0.1))
+plt.xlim(min(LW), max(LW))
+plt.title('Pearson score as a function of differing loss weight')
+plt.ylabel('Pearson score')
+plt.xlabel('Loss weights')
+fig.set_size_inches(12,5)
+plt.savefig('../report/pictures/LossWeightsPlot.png', dpi=200)'''
 
 #ef = pd.DataFrame(e)
 #ef.plot(kind='bar',title='F micro', subplots=True)
@@ -61,29 +113,41 @@ g = {'Anger':   pd.Series([0.282, 0.405], index=['NADAM', 'ADAM']),
 '''gf = pd.DataFrame(g)
 gf = gf[['Anger', 'Fear', 'Joy', 'Sadness', 'Avg.']]
 print(gf)'''
-'''test_lengths = [388, 777, 1067, 1464]
+test_lengths = [388, 777, 1067, 1464]
 
-data = np.loadtxt('./preds/statpreds.txt')
+deep_data = np.loadtxt('./preds/statpreds.txt')
+feat_data = np.loadtxt('../kode/testkode/statpreds.txt')
 
-anger_data = data[:test_lengths[0]][:,12]
-fear_data = data[test_lengths[0]:test_lengths[1]][:,12]
-joy_data = data[test_lengths[1]:test_lengths[2]][:,12]
-sadness_data = data[test_lengths[2]:test_lengths[3]][:,12]
+anger_feat = feat_data[:test_lengths[0]][:,1]
+fear_feat = feat_data[test_lengths[0]:test_lengths[1]][:,1]
+joy_feat = feat_data[test_lengths[1]:test_lengths[2]][:,1]
+sadness_feat = feat_data[test_lengths[2]:test_lengths[3]][:,1]
 
-anger_data_gold = data[:test_lengths[0]][:,0]
-fear_data_gold = data[test_lengths[0]:test_lengths[1]][:,0]
-joy_data_gold = data[test_lengths[1]:test_lengths[2]][:,0]
-sadness_data_gold = data[test_lengths[2]:test_lengths[3]][:,0]
+anger_data = deep_data[:test_lengths[0]][:,12]
+fear_data = deep_data[test_lengths[0]:test_lengths[1]][:,12]
+joy_data = deep_data[test_lengths[1]:test_lengths[2]][:,12]
+sadness_data = deep_data[test_lengths[2]:test_lengths[3]][:,12]
 
-data_general = [anger_data,anger_data_gold,fear_data, fear_data_gold,joy_data, joy_data_gold,sadness_data, sadness_data_gold]
+anger_data_gold = deep_data[:test_lengths[0]][:,0]
+fear_data_gold = deep_data[test_lengths[0]:test_lengths[1]][:,0]
+joy_data_gold = deep_data[test_lengths[1]:test_lengths[2]][:,0]
+sadness_data_gold = deep_data[test_lengths[2]:test_lengths[3]][:,0]
+
+data_general = [anger_feat,anger_data,anger_data_gold,fear_feat,fear_data,fear_data_gold,joy_feat,joy_data,joy_data_gold,sadness_feat,sadness_data,sadness_data_gold]
 
 fig = plt.figure()
-fig.set_size_inches(12,6)
-ax = fig.add_subplot(111)
-bpl = plt.boxplot(data_general)
-ax.set_xticklabels(['Anger', 'Anger, Gold', 'Fear', 'Fear, Gold', 'Joy', 'Joy, Gold', 'Sadness', 'Sadness, Gold'])
-plt.title('Boxplots over predicted regression values, deep learning')
-plt.savefig('../report/pictures/boxplotdeep.png', dpi=250)'''
+ax = fig.add_subplot(1,1,1)
+fig.set_size_inches(18,6)
+ax.boxplot(data_general, zorder=2.6)
+minor_ticks = np.arange(3.5, 12, 3)
+ax.set_xticks(minor_ticks, minor=True)
+ax.set_yticks(np.arange(0,1,0.1),minor=True)
+ax.xaxis.grid(which='minor', linewidth=5)
+ax.yaxis.grid(which='minor', linewidth=0.5)
+ax.set_xticklabels(['Anger, Feat','Anger, Deep', 'Anger, Gold', 'Fear, Feat','Fear, Deep', 'Fear, Gold', 'Joy, Feat', 'Joy, Deep', 'Joy, Gold', 'Sadness, Feat', 'Sadness, Deep', 'Sadness, Gold'])
+plt.title('Boxplots over predicted regression values')
+#plt.show()
+plt.savefig('../report/pictures/boxplotmix.png', dpi=250)
 
 
 

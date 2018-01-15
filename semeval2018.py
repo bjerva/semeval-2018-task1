@@ -197,16 +197,16 @@ def evaluate(model):
     test_preds = np.c_[test_preds[0],test_preds[1],test_preds[2],test_preds[3],test_preds[4],test_preds[5],
                         test_preds[6],test_preds[7],test_preds[8],test_preds[9],test_preds[10],test_preds[11]]
 
-    save_outputs(y_test_reg, y_test_class, test_preds)
+    #save_outputs(y_test_reg, y_test_class, test_preds)
 
-    ''' sent_ids = printPredsToFileReg(args.dev[0], './preds/sub/EI-reg_en_anger_pred.txt', dev_preds[:,0][:dev_lengths[0]])
-    sent_ids.extend(printPredsToFileReg(args.dev[1], './preds/sub/EI-reg_en_fear_pred.txt', dev_preds[:,0][dev_lengths[0]:dev_lengths[1]]))
-    sent_ids.extend(printPredsToFileReg(args.dev[2], './preds/sub/EI-reg_en_joy_pred.txt', dev_preds[:,0][dev_lengths[1]:dev_lengths[2]]))
-    sent_ids.extend(printPredsToFileReg(args.dev[3], './preds/sub/EI-reg_en_sadness_pred.txt', dev_preds[:,0][dev_lengths[2]:dev_lengths[3]]))
+    sent_ids = printPredsToFileReg(args.test[0], './preds/sub/EI-reg_en_anger_pred.txt', test_preds[:,0][:test_lengths[0]])
+    sent_ids.extend(printPredsToFileReg(args.test[1], './preds/sub/EI-reg_en_fear_pred.txt', test_preds[:,0][test_lengths[0]:test_lengths[1]]))
+    sent_ids.extend(printPredsToFileReg(args.test[2], './preds/sub/EI-reg_en_joy_pred.txt', test_preds[:,0][test_lengths[1]:test_lengths[2]]))
+    sent_ids.extend(printPredsToFileReg(args.test[3], './preds/sub/EI-reg_en_sadness_pred.txt', test_preds[:,0][test_lengths[2]:test_lengths[3]]))
 
-    printPredsToFileClass(args.aux[1], './preds/sub/E-C_en_pred.txt', dev_preds[:,1:], sent_ids) '''
+    printPredsToFileClass(args.aux[2], './preds/sub/E-C_en_pred.txt', test_preds[:,1:], sent_ids)
 
-    helper_string = ev.evaluate([train_preds[:,0][:train_lengths[0]],train_preds[:,0][train_lengths[0]:train_lengths[1]],
+    '''helper_string = ev.evaluate([train_preds[:,0][:train_lengths[0]],train_preds[:,0][train_lengths[0]:train_lengths[1]],
                 train_preds[:,0][train_lengths[1]:train_lengths[2]],train_preds[:,0][train_lengths[2]:train_lengths[3]]],
                 [y_train_reg[:train_lengths[0]],y_train_reg[train_lengths[0]:train_lengths[1]],
                 y_train_reg[train_lengths[1]:train_lengths[2]],y_train_reg[train_lengths[2]:train_lengths[3]]],
@@ -223,7 +223,7 @@ def evaluate(model):
     
     helper_string += ev.evaluate(train_preds[:,1:],y_train_class,dev_preds[:,1:],y_dev_class,test_preds[:,1:],y_test_class)
     with open("./preds/{0}.txt".format(experiment_tag),'w') as f:
-        f.write(helper_string)
+        f.write(helper_string)'''
 
 
 def save_outputs(gold_reg, gold_class, preds):
@@ -252,7 +252,7 @@ def pred_statistics(fname):
     
 
 def printPredsToFileReg(infile, outfile, res, infileenc="utf-8"):
-    outf = open(outfile, 'wu', encoding=infileenc)
+    outf = open(outfile, 'w', encoding=infileenc)
     sent_ids = []
     with open(infile, encoding=infileenc, mode='r') as f:
         outf.write(f.readline())
@@ -445,7 +445,7 @@ if __name__ == '__main__':
     optimizer = optimizers.Adam(lr=args.lr, decay=1e-6, clipnorm=1)
     if args.nadam:
         optimizer = optimizers.Nadam(lr=args.lr, clipnorm=1)
-    
+        
     model.compile(optimizer=optimizer,
         loss=model_losses,
         loss_weights=model_loss_weights,
