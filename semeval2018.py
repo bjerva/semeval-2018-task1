@@ -433,7 +433,7 @@ if __name__ == '__main__':
                     'surprise_output' : customAuxLoss,
                     'trust_output' : customAuxLoss}
     model_loss_weights = [(1-args.loss_weights)/11]*11
-    model_loss_weights.insert(0, args.loss_weights)
+    model_loss_weights.insert(0, [args.loss_weights/4, args.loss_weights/4, args.loss_weights/4, args.loss_weights/4])
 
     def mean_pred(y_true, y_pred):
         return K.mean(K.abs(y_true - y_pred))
