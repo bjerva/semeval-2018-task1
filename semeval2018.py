@@ -93,22 +93,29 @@ def build_model():
 
     if args.words:
         word_input = Input(shape=(args.max_sent_len, ), dtype='int32', name='word_input')
+        word_emo_layer = []
+        
         if not args.ignore_embeddings:
             word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len, weights=[embedding_weights], trainable=(not args.freeze), name='word_embedding')(word_input)
         else:
             word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len, name='word_embedding')(word_input)
+        
+        for i in range(4):
+            l = GRU(units=int(args.rnn_dim), return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(word_embedding)
+            #l = GRU(units=int(args.rnn_dim)/2, return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(l)
+            r = GRU(units=int(args.rnn_dim), return_sequences=False, go_backwards=True, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(word_embedding)
+            #r = GRU(units=int(args.rnn_dim)/2, return_sequences=False, go_backwards=True, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(r)
 
-        l = GRU(units=int(args.rnn_dim), return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(word_embedding)
-        #l = GRU(units=int(args.rnn_dim)/2, return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(l)
-        r = GRU(units=int(args.rnn_dim), return_sequences=False, go_backwards=True, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(word_embedding)
-        #r = GRU(units=int(args.rnn_dim)/2, return_sequences=False, go_backwards=True, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(r)
-
-        word_x = concatenate([l, r])
+            word_x = concatenate([l, r])
+            word_emo_layer.append(word_x)
+            
         if args.bn:
-            word_x = BatchNormalization()(word_x)
+            for layer in word_emo_layer:    
+                layer = BatchNormalization()(layer)
 
         if args.dropout:
-            word_x = Dropout(args.dropout)(word_x)
+            for layer in word_emo_layer:    
+                layer = Dropout(args.dropout)(layer)
 
     if args.chars:
         embedding = char_embedding
@@ -117,16 +124,20 @@ def build_model():
             embedding = BatchNormalization()(embedding)
 
         if args.rnn:
-            # Bidirectional GRU
-            l = GRU(units=int(args.rnn_dim), return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(embedding)
-            #l = GRU(units=int(args.rnn_dim)/2, return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(l)
+            char_emo_layer = []
+                for i in range(4):
+                    # Bidirectional GRU
+                    l = GRU(units=int(args.rnn_dim), return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(embedding)
+                    #l = GRU(units=int(args.rnn_dim)/2, return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(l)
 
-            r = GRU(units=int(args.rnn_dim), return_sequences=False, go_backwards=True, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(embedding)
-            #r = GRU(units=int(args.rnn_dim)/2, return_sequences=False, go_backwards=True, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(r)
+                    r = GRU(units=int(args.rnn_dim), return_sequences=False, go_backwards=True, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(embedding)
+                    #r = GRU(units=int(args.rnn_dim)/2, return_sequences=False, go_backwards=True, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(r)
 
-            x = concatenate([l, r])
+                    x = concatenate([l, r])
+                    char_emo_layer.append(x)
             if args.bn:
-                x = BatchNormalization()(x)
+                for layer in char_emo_layer:
+                    layer = BatchNormalization()(layer)
         else:
 
             x = Convolution1D(args.char_embedding_dim, 8, activation='relu', border_mode='same')(embedding)
@@ -141,24 +152,32 @@ def build_model():
             x = Dense(args.char_embedding_dim, activation='relu')(x)
 
     if args.chars and args.words:
-        x = concatenate([x, word_x])
-        x = Dense(word_embedding_dim * 2, activation='relu')(x)
+        final_emo_layer = []
+        for i in range(4):
+            final_emo_layer[i] = concatenate([char_emo_layer[i], word_emo_layer[i]])
+            final_emo_layer[i] = Dense(word_embedding_dim * 2, activation='relu')(final_emo_layer[i])
     elif args.words:
         x = word_x
 
-    anger_output = Dense(1, activation='sigmoid', name='anger_output')(x)
-    anticipation_output = Dense(1, activation='sigmoid', name='anticipation_output')(x)
-    disgust_output = Dense(1, activation='sigmoid', name='disgust_output')(x)
-    fear_output = Dense(1, activation='sigmoid', name='fear_output')(x)
-    joy_output = Dense(1, activation='sigmoid', name='joy_output')(x)
-    love_output = Dense(1, activation='sigmoid', name='love_output')(x)
-    optimism_output = Dense(1, activation='sigmoid', name='optimism_output')(x)
-    pessimism_output = Dense(1, activation='sigmoid', name='pessimism_output')(x)
-    sadness_output = Dense(1, activation='sigmoid', name='sadness_output')(x)
-    surprise_output = Dense(1, activation='sigmoid', name='surprise_output')(x)
-    trust_output = Dense(1, activation='sigmoid', name='trust_output')(x)
+    big_kahuna = concatenate(final_emo_layer)
 
-    main_output = Dense(1, activation='linear', name='main_output')(x)
+    anger_output = Dense(1, activation='sigmoid', name='anger_output')(big_kahuna)
+    anticipation_output = Dense(1, activation='sigmoid', name='anticipation_output')(big_kahuna)
+    disgust_output = Dense(1, activation='sigmoid', name='disgust_output')(big_kahuna)
+    fear_output = Dense(1, activation='sigmoid', name='fear_output')(big_kahuna)
+    joy_output = Dense(1, activation='sigmoid', name='joy_output')(big_kahuna)
+    love_output = Dense(1, activation='sigmoid', name='love_output')(big_kahuna)
+    optimism_output = Dense(1, activation='sigmoid', name='optimism_output')(big_kahuna)
+    pessimism_output = Dense(1, activation='sigmoid', name='pessimism_output')(big_kahuna)
+    sadness_output = Dense(1, activation='sigmoid', name='sadness_output')(big_kahuna)
+    surprise_output = Dense(1, activation='sigmoid', name='surprise_output')(big_kahuna)
+    trust_output = Dense(1, activation='sigmoid', name='trust_output')(big_kahuna)
+
+    main_anger_output = Dense(1, activation='linear', name='main_anger_output')(final_emo_layer[0])
+    main_fear_output = Dense(1, activation='linear', name='main_fear_output')(final_emo_layer[1])
+    main_joy_output = Dense(1, activation='linear', name='main_joy_output')(final_emo_layer[2])
+    main_sadness_output = Dense(1, activation='linear', name='main_sadness_output')(final_emo_layer[3])
+
 
     if args.chars and args.words:
         model_input = [word_input, char_input]
@@ -167,9 +186,10 @@ def build_model():
     elif args.words:
         model_input = [word_input, ]
 
-    model_output = [main_output, anger_output, anticipation_output, disgust_output, fear_output,
-                    joy_output, love_output, optimism_output, pessimism_output, sadness_output,
-                    surprise_output, trust_output]
+    model_output = [main_anger_output, main_fear_output, main_joy_output, main_sadness_output, 
+                    anger_output, anticipation_output, disgust_output, fear_output, joy_output, 
+                    love_output, optimism_output, pessimism_output, sadness_output, surprise_output,
+                    trust_output]
 
     model = Model(inputs=model_input, outputs=model_output)
 
@@ -297,16 +317,25 @@ if __name__ == '__main__':
     X_test_word = np.asarray(X_test_word)
 
     y_train = np.asarray(y_train)
-    y_train_reg = y_train[:,0]
-    y_train_class = y_train[:,1:]
+    y_train_anger = y_train[:,0]
+    y_train_fear = y_train[:,1]
+    y_train_joy = y_train[:,2]
+    y_train_sadness = y_train[:,3]
+    y_train_class = y_train[:,4:]
 
     y_dev = np.asarray(y_dev)
-    y_dev_reg = y_dev[:,0]
-    y_dev_class = y_dev[:,1:]
+    y_dev_anger = y_dev[:,0]
+    y_dev_fear = y_dev[:,1]
+    y_dev_joy = y_dev[:,2]
+    y_dev_sadness = y_dev[:,3]
+    y_dev_class = y_dev[:,4:]
     
     y_test = np.asarray(y_test)
-    y_test_reg = y_test[:,0]
-    y_test_class = y_test[:,1:]
+    y_test_anger = y_test[:,0]
+    y_test_fear = y_test[:,1]
+    y_test_joy = y_test[:,2]
+    y_test_sadness = y_test[:,3]
+    y_test_class = y_test[:,4:]
 
     if args.words:
         if args.ignore_embeddings or not args.embeddings:
@@ -379,12 +408,19 @@ if __name__ == '__main__':
 
     def customAuxLoss(y_true, y_pred):
         return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), weighted_binary_crossentropy(y_true, y_pred)),axis=1)
+    
+    def custom_main_loss(y_true, y_pred):
+        return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,0), tf.square((y_true-y_pred))))
 
-    model_outputs = [y_train_reg, y_train_class[:,0], y_train_class[:,1], y_train_class[:,2], y_train_class[:,3],
+    model_outputs = [y_train_anger, y_train_fear, y_train_joy, y_train_sadness, 
+                    y_train_class[:,0], y_train_class[:,1], y_train_class[:,2], y_train_class[:,3],
                     y_train_class[:,4], y_train_class[:,5], y_train_class[:,6], y_train_class[:,7],
                     y_train_class[:,8], y_train_class[:,9], y_train_class[:,10]]
 
-    model_losses = {'main_output' : 'mean_squared_error',
+    model_losses = {'main_anger_output' : custom_main_loss,
+                    'main_fear_output' : custom_main_loss,
+                    'main_joy_output' : custom_main_loss,
+                    'main_sadness_output' : custom_main_loss,
                     'anger_output' : customAuxLoss,
                     'anticipation_output' : customAuxLoss,
                     'disgust_output' : customAuxLoss,
@@ -405,7 +441,10 @@ if __name__ == '__main__':
     def customAuxMetric(y_true, y_pred):
         return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,-1.0), K.cast(K.equal(y_true, K.round(y_pred)),dtype='float32')))
 
-    model_metrics = {'main_output' : mean_pred,
+    model_metrics = {'main_anger_output' : mean_pred,
+                    'main_fear_output' : mean_pred,
+                    'main_joy_output' : mean_pred,
+                    'main_sadness_output' : mean_pred,
                     'anger_output' : customAuxMetric,
                     'anticipation_output' : customAuxMetric,
                     'disgust_output' : customAuxMetric,
@@ -482,7 +521,8 @@ if __name__ == '__main__':
                         verbose=args.verbose)
     else:
         model.fit(X_train, model_outputs,
-            validation_data=(X_dev, [y_dev_reg, y_dev_class[:,0], y_dev_class[:,1], y_dev_class[:,2], y_dev_class[:,3],
+            validation_data=(X_dev, [y_dev_anger, y_dev_fear, y_dev_joy, y_dev_sadness,
+                y_dev_class[:,0], y_dev_class[:,1], y_dev_class[:,2], y_dev_class[:,3],
                 y_dev_class[:,4], y_dev_class[:,5], y_dev_class[:,6], y_dev_class[:,7],
                 y_dev_class[:,8], y_dev_class[:,9], y_dev_class[:,10]]),
                 epochs=args.epochs,
