@@ -108,3 +108,4 @@ trained_embeddings.txt
 preds/*
 logs/*
 models/*
+*.csv
