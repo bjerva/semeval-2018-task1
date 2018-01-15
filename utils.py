@@ -28,7 +28,7 @@ def read_word_embeddings(fname):
     vec_dim = len(word_vec_map[word])
     return word_vec_map, word_id_map, vec_dim
 
-def load_character_data(fname, char_to_id, max_sent_len, max_word_len=32, is_aux=False):
+def load_character_data(fname, char_to_id, max_sent_len, max_word_len=32):
     X = []
 
     with open(fname, 'r', encoding='utf-8') as in_f:
