@@ -154,7 +154,7 @@ def build_model():
     if args.chars and args.words:
         final_emo_layer = []
         for i in range(4):
-            final_emo_layer[i] = concatenate([char_emo_layer[i], word_emo_layer[i]])
+            final_emo_layer.append(concatenate([char_emo_layer[i], word_emo_layer[i]]))
             final_emo_layer[i] = Dense(word_embedding_dim * 2, activation='relu')(final_emo_layer[i])
     elif args.words:
         x = word_x
@@ -433,7 +433,7 @@ if __name__ == '__main__':
                     'surprise_output' : customAuxLoss,
                     'trust_output' : customAuxLoss}
     model_loss_weights = [(1-args.loss_weights)/11]*11
-    model_loss_weights.insert(0, args.loss_weights)
+    model_loss_weights.insert(0, [args.loss_weights/4, args.loss_weights/4, args.loss_weights/4, args.loss_weights/4])
 
     def mean_pred(y_true, y_pred):
         return K.mean(K.abs(y_true - y_pred))
