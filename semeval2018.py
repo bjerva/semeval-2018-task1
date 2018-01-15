@@ -125,16 +125,16 @@ def build_model():
 
         if args.rnn:
             char_emo_layer = []
-                for i in range(4):
-                    # Bidirectional GRU
-                    l = GRU(units=int(args.rnn_dim), return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(embedding)
-                    #l = GRU(units=int(args.rnn_dim)/2, return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(l)
+            for i in range(4):
+                # Bidirectional GRU
+                l = GRU(units=int(args.rnn_dim), return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(embedding)
+                #l = GRU(units=int(args.rnn_dim)/2, return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(l)
 
-                    r = GRU(units=int(args.rnn_dim), return_sequences=False, go_backwards=True, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(embedding)
-                    #r = GRU(units=int(args.rnn_dim)/2, return_sequences=False, go_backwards=True, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(r)
+                r = GRU(units=int(args.rnn_dim), return_sequences=False, go_backwards=True, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(embedding)
+                #r = GRU(units=int(args.rnn_dim)/2, return_sequences=False, go_backwards=True, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(r)
 
-                    x = concatenate([l, r])
-                    char_emo_layer.append(x)
+                x = concatenate([l, r])
+                char_emo_layer.append(x)
             if args.bn:
                 for layer in char_emo_layer:
                     layer = BatchNormalization()(layer)
@@ -154,7 +154,7 @@ def build_model():
     if args.chars and args.words:
         final_emo_layer = []
         for i in range(4):
-            final_emo_layer[i] = concatenate([char_emo_layer[i], word_emo_layer[i]])
+            final_emo_layer.append(concatenate([char_emo_layer[i], word_emo_layer[i]]))
             final_emo_layer[i] = Dense(word_embedding_dim * 2, activation='relu')(final_emo_layer[i])
     elif args.words:
         x = word_x
