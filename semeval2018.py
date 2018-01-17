@@ -93,7 +93,7 @@ def build_model():
 
     if args.words:
         word_input = Input(shape=(args.max_sent_len, ), dtype='int32', name='word_input')
-        word_emo_layer = []
+        word_x = []
         
         if not args.ignore_embeddings:
             word_embedding = Embedding(vocab_size, word_embedding_dim, input_length=args.max_sent_len, weights=[embedding_weights], trainable=(not args.freeze), name='word_embedding')(word_input)
@@ -106,15 +106,15 @@ def build_model():
             r = GRU(units=int(args.rnn_dim), return_sequences=False, go_backwards=True, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(word_embedding)
             #r = GRU(units=int(args.rnn_dim)/2, return_sequences=False, go_backwards=True, dropout=args.dropout, input_shape=(args.max_sent_len, word_embedding_dim), activation='relu')(r)
 
-            word_x = concatenate([l, r])
-            word_emo_layer.append(word_x)
+            word_emo_layer = concatenate([l, r])
+            word_x.append(word_emo_layer)
             
         if args.bn:
-            for layer in word_emo_layer:    
+            for layer in word_x:    
                 layer = BatchNormalization()(layer)
 
         if args.dropout:
-            for layer in word_emo_layer:    
+            for layer in word_x:    
                 layer = Dropout(args.dropout)(layer)
 
     if args.chars:
@@ -124,7 +124,7 @@ def build_model():
             embedding = BatchNormalization()(embedding)
 
         if args.rnn:
-            char_emo_layer = []
+            char_x = []
             for i in range(4):
                 # Bidirectional GRU
                 l = GRU(units=int(args.rnn_dim), return_sequences=False, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(embedding)
@@ -133,10 +133,11 @@ def build_model():
                 r = GRU(units=int(args.rnn_dim), return_sequences=False, go_backwards=True, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(embedding)
                 #r = GRU(units=int(args.rnn_dim)/2, return_sequences=False, go_backwards=True, dropout=args.dropout, input_shape=(args.max_sent_len, args.char_embedding_dim), activation='relu')(r)
 
-                x = concatenate([l, r])
-                char_emo_layer.append(x)
+                char_emo_layer = concatenate([l, r])
+                char_x.append(char_emo_layer)
+            
             if args.bn:
-                for layer in char_emo_layer:
+                for layer in char_x:
                     layer = BatchNormalization()(layer)
         else:
 
@@ -149,35 +150,36 @@ def build_model():
             x = MaxPooling1D(pool_length=8, border_mode='same')(x)
 
             x = Reshape((args.char_embedding_dim * 2, ))(x)
-            x = Dense(args.char_embedding_dim, activation='relu')(x)
+            char_x = Dense(args.char_embedding_dim, activation='relu')(x)
 
     if args.chars and args.words:
-        final_emo_layer = []
+        x = []
         for i in range(4):
-            final_emo_layer.append(concatenate([char_emo_layer[i], word_emo_layer[i]]))
-            final_emo_layer[i] = Dense(word_embedding_dim * 2, activation='relu')(final_emo_layer[i])
+            x.append(concatenate([char_x[i], word_x[i]]))
+            x[i] = Dense(word_embedding_dim * 2, activation='relu')(x[i])
     elif args.words:
         x = word_x
+    elif args.chars:
+        x = char_x
 
-    big_kahuna = concatenate(final_emo_layer)
+    main_anger_output = Dense(1, activation='linear', name='main_anger_output')(x[0])
+    main_fear_output = Dense(1, activation='linear', name='main_fear_output')(x[1])
+    main_joy_output = Dense(1, activation='linear', name='main_joy_output')(x[2])
+    main_sadness_output = Dense(1, activation='linear', name='main_sadness_output')(x[3])
 
-    anger_output = Dense(1, activation='sigmoid', name='anger_output')(big_kahuna)
-    anticipation_output = Dense(1, activation='sigmoid', name='anticipation_output')(big_kahuna)
-    disgust_output = Dense(1, activation='sigmoid', name='disgust_output')(big_kahuna)
-    fear_output = Dense(1, activation='sigmoid', name='fear_output')(big_kahuna)
-    joy_output = Dense(1, activation='sigmoid', name='joy_output')(big_kahuna)
-    love_output = Dense(1, activation='sigmoid', name='love_output')(big_kahuna)
-    optimism_output = Dense(1, activation='sigmoid', name='optimism_output')(big_kahuna)
-    pessimism_output = Dense(1, activation='sigmoid', name='pessimism_output')(big_kahuna)
-    sadness_output = Dense(1, activation='sigmoid', name='sadness_output')(big_kahuna)
-    surprise_output = Dense(1, activation='sigmoid', name='surprise_output')(big_kahuna)
-    trust_output = Dense(1, activation='sigmoid', name='trust_output')(big_kahuna)
+    x = concatenate(x)
 
-    main_anger_output = Dense(1, activation='linear', name='main_anger_output')(final_emo_layer[0])
-    main_fear_output = Dense(1, activation='linear', name='main_fear_output')(final_emo_layer[1])
-    main_joy_output = Dense(1, activation='linear', name='main_joy_output')(final_emo_layer[2])
-    main_sadness_output = Dense(1, activation='linear', name='main_sadness_output')(final_emo_layer[3])
-
+    anger_output = Dense(1, activation='sigmoid', name='anger_output')(x)
+    anticipation_output = Dense(1, activation='sigmoid', name='anticipation_output')(x)
+    disgust_output = Dense(1, activation='sigmoid', name='disgust_output')(x)
+    fear_output = Dense(1, activation='sigmoid', name='fear_output')(x)
+    joy_output = Dense(1, activation='sigmoid', name='joy_output')(x)
+    love_output = Dense(1, activation='sigmoid', name='love_output')(x)
+    optimism_output = Dense(1, activation='sigmoid', name='optimism_output')(x)
+    pessimism_output = Dense(1, activation='sigmoid', name='pessimism_output')(x)
+    sadness_output = Dense(1, activation='sigmoid', name='sadness_output')(x)
+    surprise_output = Dense(1, activation='sigmoid', name='surprise_output')(x)
+    trust_output = Dense(1, activation='sigmoid', name='trust_output')(x)
 
     if args.chars and args.words:
         model_input = [word_input, char_input]
@@ -221,7 +223,6 @@ def evaluate(model):
                         test_preds[12],test_preds[13],test_preds[14]]
 
     #save_outputs(y_test_reg, y_test_class, test_preds)
-    #import ipdb; ipdb.set_trace()
     '''sent_ids = printPredsToFileReg(args.dev[0], './preds/sub/EI-reg_en_anger_pred.txt', dev_preds[:,0][:dev_lengths[0]])
     sent_ids.extend(printPredsToFileReg(args.dev[1], './preds/sub/EI-reg_en_fear_pred.txt', dev_preds[:,1][dev_lengths[0]:dev_lengths[1]]))
     sent_ids.extend(printPredsToFileReg(args.dev[2], './preds/sub/EI-reg_en_joy_pred.txt', dev_preds[:,2][dev_lengths[1]:dev_lengths[2]]))
@@ -229,24 +230,36 @@ def evaluate(model):
 
     printPredsToFileClass(args.aux[1], './preds/sub/E-C_en_pred.txt', dev_preds[:,4:], sent_ids)'''
 
-    '''helper_string = ev.evaluate([train_preds[:,0][:train_lengths[0]],train_preds[:,0][train_lengths[0]:train_lengths[1]],
-                train_preds[:,0][train_lengths[1]:train_lengths[2]],train_preds[:,0][train_lengths[2]:train_lengths[3]]],
-                [y_train_reg[:train_lengths[0]],y_train_reg[train_lengths[0]:train_lengths[1]],
-                y_train_reg[train_lengths[1]:train_lengths[2]],y_train_reg[train_lengths[2]:train_lengths[3]]],
+    helper_string = ev.evaluate([train_preds[:,0][:train_lengths[0]], #Predictions on train data
+                                train_preds[:,1][train_lengths[0]:train_lengths[1]],
+                                train_preds[:,2][train_lengths[1]:train_lengths[2]],
+                                train_preds[:,3][train_lengths[2]:train_lengths[3]]],
+                                [y_train_anger[:train_lengths[0]], #Gold labels on train data
+                                y_train_fear[train_lengths[0]:train_lengths[1]],
+                                y_train_joy[train_lengths[1]:train_lengths[2]],
+                                y_train_sadness[train_lengths[2]:train_lengths[3]]],
 
-                [dev_preds[:,0][:dev_lengths[0]],dev_preds[:,0][dev_lengths[0]:dev_lengths[1]],
-                dev_preds[:,0][dev_lengths[1]:dev_lengths[2]],dev_preds[:,0][dev_lengths[2]:dev_lengths[3]]],
-                [y_dev_reg[:dev_lengths[0]],y_dev_reg[dev_lengths[0]:dev_lengths[1]],
-                y_dev_reg[dev_lengths[1]:dev_lengths[2]],y_dev_reg[dev_lengths[2]:dev_lengths[3]]],
+                                [dev_preds[:,0][:dev_lengths[0]], #Predictions on dev data
+                                dev_preds[:,1][dev_lengths[0]:dev_lengths[1]],
+                                dev_preds[:,2][dev_lengths[1]:dev_lengths[2]],
+                                dev_preds[:,3][dev_lengths[2]:dev_lengths[3]]],
+                                [y_dev_anger[:dev_lengths[0]], #Gold labels on dev data
+                                y_dev_fear[dev_lengths[0]:dev_lengths[1]],
+                                y_dev_joy[dev_lengths[1]:dev_lengths[2]],
+                                y_dev_sadness[dev_lengths[2]:dev_lengths[3]]],
 
-                [test_preds[:,0][:test_lengths[0]],test_preds[:,0][test_lengths[0]:test_lengths[1]],
-                test_preds[:,0][test_lengths[1]:test_lengths[2]],test_preds[:,0][test_lengths[2]:test_lengths[3]]],
-                [y_test_reg[:test_lengths[0]],y_test_reg[test_lengths[0]:test_lengths[1]],
-                y_test_reg[test_lengths[1]:test_lengths[2]],y_test_reg[test_lengths[2]:test_lengths[3]]])
+                                [test_preds[:,0][:test_lengths[0]], #Predictions on test data
+                                test_preds[:,1][test_lengths[0]:test_lengths[1]],
+                                test_preds[:,2][test_lengths[1]:test_lengths[2]],
+                                test_preds[:,3][test_lengths[2]:test_lengths[3]]],
+                                [y_test_anger[:test_lengths[0]], #Gold labels on test data, lmao
+                                y_test_fear[test_lengths[0]:test_lengths[1]],
+                                y_test_joy[test_lengths[1]:test_lengths[2]],
+                                y_test_sadness[test_lengths[2]:test_lengths[3]]])
     
-    helper_string += ev.evaluate(train_preds[:,1:],y_train_class,dev_preds[:,1:],y_dev_class,test_preds[:,1:],y_test_class)
+    helper_string += ev.evaluate(train_preds[:,4:],y_train_class,dev_preds[:,4:],y_dev_class,test_preds[:,4:],y_test_class)
     with open("./preds/{0}.txt".format(experiment_tag),'w') as f:
-        f.write(helper_string)'''
+        f.write(helper_string)
 
 
 def save_outputs(gold_reg, gold_class, preds):
@@ -442,7 +455,7 @@ if __name__ == '__main__':
     model_loss_weights.insert(3, args.loss_weights/4)
 
     def mean_pred(y_true, y_pred):
-        return K.mean(K.abs(y_true - y_pred))
+        return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,-1.0), K.abs(y_true - y_pred)))
 
     def customAuxMetric(y_true, y_pred):
         return K.mean(K.switch(K.equal(y_true, MASK), tf.multiply(y_true,-1.0), K.cast(K.equal(y_true, K.round(y_pred)),dtype='float32')))
@@ -465,7 +478,7 @@ if __name__ == '__main__':
 
     if args.reuse:
         print('Loading model...')
-        model = load_model(args.reuse, custom_objects={'customAuxLoss': customAuxLoss, 'mean_pred': mean_pred, 'customAuxMetric' : customAuxMetric})
+        model = load_model(args.reuse, custom_objects={'custom_main_loss': custom_main_loss, 'customAuxLoss': customAuxLoss, 'mean_pred': mean_pred, 'customAuxMetric' : customAuxMetric})
         evaluate(model)
 
         if args.plot:
@@ -507,6 +520,7 @@ if __name__ == '__main__':
 
     if args.early_stopping:
         callbacks.append(EarlyStopping(monitor='val_loss', patience=args.early_stopping))
+
     if args.kfold:
         kf = KFold(n_splits=args.kfold, shuffle=True)
         for train_index, test_index in kf.split(X_train_word):
@@ -527,7 +541,7 @@ if __name__ == '__main__':
                         verbose=args.verbose)
     else:
         model.fit(X_train, model_outputs,
-            validation_data=(X_dev, [y_dev_anger, y_dev_fear, y_dev_joy, y_dev_sadness,
+                validation_data=(X_dev, [y_dev_anger, y_dev_fear, y_dev_joy, y_dev_sadness,
                 y_dev_class[:,0], y_dev_class[:,1], y_dev_class[:,2], y_dev_class[:,3],
                 y_dev_class[:,4], y_dev_class[:,5], y_dev_class[:,6], y_dev_class[:,7],
                 y_dev_class[:,8], y_dev_class[:,9], y_dev_class[:,10]]),
@@ -545,18 +559,11 @@ if __name__ == '__main__':
         model.save("models/{0}.h5".format(experiment_tag))
     evaluate(model)
 
-
-    
-
     if args.save_word_weights:
         print('Saving word embedding weights...')
         layer = model.get_layer(name='word_embedding').get_weights()
         words_used = list(index_dict.keys())
-        
-        #word_dictionary = {}
-        #for i, word in enumerate(words_used):
-        #    word_dictionary[word] = layer[0][i]
-        
+                
         with open('trained_embeddings.txt', 'w') as f:
             bad_chars = ['[', ']', '\n',]
             for index, word in enumerate(words_used):
