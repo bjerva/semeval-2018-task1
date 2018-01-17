@@ -70,7 +70,7 @@ def read_word_data(trainfiles, devfiles, testfiles, aux, word_to_id, word_vector
         prev += length
         X_train.extend(X_train_temp)
         y_train.extend(y_train_temp)
-
+    
     prev = 0
     for devfile in devfiles:
         (X_dev_ids, y_dev_ids,_,_,_, length, _) = utils.load_word_data(devfile, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len, y_dict=y_dict)
@@ -93,7 +93,13 @@ def read_word_data(trainfiles, devfiles, testfiles, aux, word_to_id, word_vector
             y_test.extend(y_test_temp)
     else:
         X_test, y_test  = None, None
-
+    
+    cntr = 0
+    for idx, x in enumerate(X_train):
+        if np.where(x == 26889)[0] != []:
+            cntr += 1
+            import ipdb; ipdb.set_trace()
+    
     return (X_train, y_train), (X_dev, y_dev), (X_test, y_test), word_vectors, word_to_id, train_lengths, dev_lengths, test_lengths
 
 def read_char_data(trainfiles, devfiles, testfiles, char_to_id, max_sent_len, max_word_len):

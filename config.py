@@ -54,6 +54,7 @@ SENT_CONT = '##'
 UNKNOWN = '_UNK'
 NUMBER = '####'
 USER = '<USER>'
+BADSTRING = '<BAD>'
 
 if args.embeddings:
     emb_name = os.path.basename(args.embeddings)
