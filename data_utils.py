@@ -60,11 +60,13 @@ def read_word_data(trainfiles, devfiles, testfiles, aux, word_to_id, word_vector
     filtered_word_to_id = defaultdict(lambda: len(filtered_word_to_id))
 
     for auxfiles in aux:
-        (_, _, _, _, _, _, y_dict) = utils.load_word_data(auxfiles, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len, is_training=True)
+        (_, _, _, _, _, y_dict) = utils.load_word_data(auxfiles, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len)
 
     for trainfile in trainfiles:
-        (X_train_ids, y_train_ids, word_to_id, filtered_word_to_id, tag_to_id, length, y_dict) = utils.load_word_data(trainfile, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len, y_dict=y_dict, is_training=True)
-        X_train_temp, y_train_temp, word_vectors = preprocess_words(X_train_ids, y_train_ids, word_to_id, tag_to_id, word_vectors, max_sent_len)
+        (X_train_ids, y_train_ids, new_filtered_word_to_id, tag_to_id, length, y_dict) = utils.load_word_data(trainfile, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len, y_dict=y_dict, is_training=True)
+        X_train_temp, y_train_temp, word_vectors = preprocess_words(X_train_ids, y_train_ids, new_filtered_word_to_id, tag_to_id, word_vectors, max_sent_len)
+        
+        filtered_word_to_id.update(new_filtered_word_to_id)
 
         train_lengths.append(length + prev)
         prev += length
@@ -72,8 +74,10 @@ def read_word_data(trainfiles, devfiles, testfiles, aux, word_to_id, word_vector
         y_train.extend(y_train_temp)
     
     prev = 0
+    #word_to_id = filtered_word_to_id
+
     for devfile in devfiles:
-        (X_dev_ids, y_dev_ids,_,_,_, length, _) = utils.load_word_data(devfile, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len, y_dict=y_dict)
+        (X_dev_ids, y_dev_ids,_,_, length, _) = utils.load_word_data(devfile, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len, y_dict=y_dict)
         X_dev_temp, y_dev_temp, _ = preprocess_words(X_dev_ids, y_dev_ids, word_to_id, tag_to_id, word_vectors, max_sent_len)
 
         dev_lengths.append(length + prev)
@@ -84,7 +88,7 @@ def read_word_data(trainfiles, devfiles, testfiles, aux, word_to_id, word_vector
     prev = 0
     if testfiles:
         for testfile in testfiles:
-            (X_test_ids, y_test_ids,_,_,_, length, _) = utils.load_word_data(testfile, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len)
+            (X_test_ids, y_test_ids,_,_, length, _) = utils.load_word_data(testfile, word_to_id, filtered_word_to_id, tag_to_id, max_sent_len)
             X_test_temp, y_test_temp, word_vectors = preprocess_words(X_test_ids, y_test_ids, word_to_id, tag_to_id, word_vectors, max_sent_len)
 
             test_lengths.append(length + prev)
@@ -93,13 +97,7 @@ def read_word_data(trainfiles, devfiles, testfiles, aux, word_to_id, word_vector
             y_test.extend(y_test_temp)
     else:
         X_test, y_test  = None, None
-    
-    cntr = 0
-    for idx, x in enumerate(X_train):
-        if np.where(x == 26889)[0] != []:
-            cntr += 1
-            import ipdb; ipdb.set_trace()
-    
+
     return (X_train, y_train), (X_dev, y_dev), (X_test, y_test), word_vectors, word_to_id, train_lengths, dev_lengths, test_lengths
 
 def read_char_data(trainfiles, devfiles, testfiles, char_to_id, max_sent_len, max_word_len):

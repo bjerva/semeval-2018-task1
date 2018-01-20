@@ -84,8 +84,8 @@ def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_l
                         curr_X.append(word_to_id[UNKNOWN])
             X.append(curr_X)
             if labels[1] == 'NONE':
-                y = labels[1:]
-            else:
+                y.append(['NONE']*15)
+            else: 
                 if len(labels) <= 2:
                     floats = [-1.0, -1.0, -1.0, -1.0]
                     floats[emo_dict[labels[0]]] = float(labels[1])
@@ -133,4 +133,4 @@ def load_word_data(fname, word_to_id, filtered_word_to_id, tag_to_id, max_sent_l
         print('n discarded toks: {0}'.format(discarded_tokens))
         print('amount of tweets with no class labels: {0}\n'.format(reg_no_class))
 
-    return X, y, word_to_id, filtered_word_to_id, tag_to_id, length, y_dict
+    return X, y, filtered_word_to_id, tag_to_id, length, y_dict

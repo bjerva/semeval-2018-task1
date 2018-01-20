@@ -108,15 +108,15 @@ def build_model():
 
             word_emo_layer = concatenate([l, r])
             word_x.append(word_emo_layer)
-            
+        '''
         if args.bn:
-            for layer in word_x:    
-                layer = BatchNormalization()(layer)
+            for i in range(4):    
+                word_x[i] = BatchNormalization()(word_x[i])
 
         if args.dropout:
-            for layer in word_x:    
-                layer = Dropout(args.dropout)(layer)
-
+            for i in range(4):    
+                word_x[i] = Dropout(args.dropout)(word_x[i])
+        '''
     if args.chars:
         embedding = char_embedding
 
@@ -135,10 +135,11 @@ def build_model():
 
                 char_emo_layer = concatenate([l, r])
                 char_x.append(char_emo_layer)
-            
+            '''
             if args.bn:
-                for layer in char_x:
-                    layer = BatchNormalization()(layer)
+                for i in range(4):
+                    char_x[i] = BatchNormalization()(char_x[i])
+            '''
         else:
 
             x = Convolution1D(args.char_embedding_dim, 8, activation='relu', border_mode='same')(embedding)
@@ -475,7 +476,7 @@ if __name__ == '__main__':
                     'sadness_output' : customAuxMetric,
                     'surprise_output' : customAuxMetric,
                     'trust_output' : customAuxMetric} 
-
+    import ipdb; ipdb.set_trace()
     if args.reuse:
         print('Loading model...')
         model = load_model(args.reuse, custom_objects={'custom_main_loss': custom_main_loss, 'customAuxLoss': customAuxLoss, 'mean_pred': mean_pred, 'customAuxMetric' : customAuxMetric})
