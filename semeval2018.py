@@ -9,7 +9,6 @@ Run with python -u to make sure slurm logs are written instantly.
 
 # Random seeds
 import numpy as np
-import pandas as pd
 import random
 random.seed(1337)
 np.random.seed(1337)  # Freeze seeds for reproducibility
@@ -21,6 +20,7 @@ from keras.layers import LSTM, GRU, Input, add, concatenate, BatchNormalization
 from keras.layers.wrappers import TimeDistributed
 from keras.layers.core import Dense, Dropout, Activation, Flatten, Reshape, Lambda, Masking
 from keras.layers.convolutional import Convolution1D, MaxPooling1D
+from keras.layers.pooling import GlobalMaxPooling1D
 from keras import backend as K
 from keras.callbacks import TensorBoard, EarlyStopping, ModelCheckpoint, ProgbarLogger, TerminateOnNaN
 from keras import metrics
@@ -28,7 +28,6 @@ from keras import optimizers
 from keras.utils import plot_model
 import pydot
 import tensorflow as tf
-import matplotlib.pyplot as plt
 
 
 # Standard
@@ -108,7 +107,7 @@ def build_model():
 
             word_emo_layer = concatenate([l, r])
             word_x.append(word_emo_layer)
-        '''
+        
         if args.bn:
             for i in range(4):    
                 word_x[i] = BatchNormalization()(word_x[i])
@@ -116,7 +115,7 @@ def build_model():
         if args.dropout:
             for i in range(4):    
                 word_x[i] = Dropout(args.dropout)(word_x[i])
-        '''
+        
     if args.chars:
         embedding = char_embedding
 
@@ -135,11 +134,11 @@ def build_model():
 
                 char_emo_layer = concatenate([l, r])
                 char_x.append(char_emo_layer)
-            '''
+            
             if args.bn:
                 for i in range(4):
                     char_x[i] = BatchNormalization()(char_x[i])
-            '''
+            
         else:
 
             x = Convolution1D(args.char_embedding_dim, 8, activation='relu', border_mode='same')(embedding)
@@ -169,6 +168,8 @@ def build_model():
     main_sadness_output = Dense(1, activation='linear', name='main_sadness_output')(x[3])
 
     x = concatenate(x)
+    #x = Reshape((4,800))(x)
+    #x = GlobalMaxPooling1D()(x)
 
     anger_output = Dense(1, activation='sigmoid', name='anger_output')(x)
     anticipation_output = Dense(1, activation='sigmoid', name='anticipation_output')(x)
@@ -265,28 +266,7 @@ def evaluate(model):
 
 def save_outputs(gold_reg, gold_class, preds):
     gold = np.c_[gold_reg, gold_class, preds]
-    np.savetxt('./preds/statpreds.txt', gold, fmt='%.3f %i %i %i %i %i %i %i %i %i %i %i %.3f %i %i %i %i %i %i %i %i %i %i %i')
-
-def pred_statistics(fname):
-    data = np.loadtxt(fname)
-
-    anger_var = (np.var(data[:train_lengths[0],0]), np.var(data[:train_lengths[0],12]))
-    anger_mean = (np.mean(data[:train_lengths[0],0]), np.mean(data[:train_lengths[0],12]))
-
-    fear_var = (np.var(data[train_lengths[0]:train_lengths[1],0]), np.var(data[train_lengths[0]:train_lengths[1],12]))
-    fear_mean = (np.mean(data[train_lengths[0]:train_lengths[1],0]), np.mean(data[train_lengths[0]:train_lengths[1],12]))
-
-    joy_var = (np.var(data[train_lengths[1]:train_lengths[2],0]), np.var(data[train_lengths[1]:train_lengths[2],12]))
-    joy_mean = (np.mean(data[train_lengths[1]:train_lengths[2],0]), np.mean(data[train_lengths[1]:train_lengths[2],12]))
-
-    sadness_var = (np.var(data[train_lengths[2]:train_lengths[3],0]), np.var(data[train_lengths[2]:train_lengths[3],12]))
-    sadness_mean = (np.mean(data[train_lengths[2]:train_lengths[3],0]), np.mean(data[train_lengths[2]:train_lengths[3],12]))
-
-    pred_data = np.c_[data[:train_lengths[0]][:,12], data[train_lengths[0]:train_lengths[1]][:,12], data[train_lengths[1]:train_lengths[2]][:,12], data[train_lengths[2]:train_lengths[3]][:,12]]
-    df = pd.DataFrame(pred_data, columns=['Anger', 'Fear', 'Joy', 'Sadness'])
-    df.plot.box()
-    plt.show()
-    
+    np.savetxt('./preds/statpreds.txt', gold, fmt='%.3f %i %i %i %i %i %i %i %i %i %i %i %.3f %i %i %i %i %i %i %i %i %i %i %i')    
 
 def printPredsToFileReg(infile, outfile, res, infileenc="utf-8"):
     outf = open(outfile, 'w', encoding=infileenc)
@@ -476,7 +456,7 @@ if __name__ == '__main__':
                     'sadness_output' : customAuxMetric,
                     'surprise_output' : customAuxMetric,
                     'trust_output' : customAuxMetric} 
-    import ipdb; ipdb.set_trace()
+
     if args.reuse:
         print('Loading model...')
         model = load_model(args.reuse, custom_objects={'custom_main_loss': custom_main_loss, 'customAuxLoss': customAuxLoss, 'mean_pred': mean_pred, 'customAuxMetric' : customAuxMetric})
